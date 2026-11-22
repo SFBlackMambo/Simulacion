@@ -5,7 +5,9 @@ from collections import deque
 from operator import attrgetter
 
 from .arrivals import PoissonArrivals
+from . import overtaking
 from .idm import IDMParams, advance, idm_acceleration
+from .overtaking import OvertakeParams
 from .vehicle import Vehicle
 
 _POR_X = attrgetter("x")
@@ -23,9 +25,10 @@ class Road:
         length: float = 20_000.0,
         dt: float = 0.1,
         idm: IDMParams = IDMParams(),
-        t_emergency: float = 4.0,
-        b_emergency: float = 5.0,
+        t_emergency: float = 3.0,
+        b_emergency: float = 6.0,
         d_emergency: float = 30.0,
+        overtaking: OvertakeParams | None = None,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -33,7 +36,9 @@ class Road:
         self.t_emergency = t_emergency  # tiempo a colisión frontal que dispara el frenado
         self.b_emergency = b_emergency  # deceleración de emergencia, m/s²
         self.d_emergency = d_emergency  # distancia mínima frente a frente, m
+        self.overtaking = overtaking  # None: nadie rebasa
         self.t = 0.0
+        self.n_steps = 0
         self.vehicles: list[Vehicle] = []
         self.finished: list[Vehicle] = []
         self.collisions = 0
@@ -138,6 +143,8 @@ class Road:
                 self.inject(v0, direction)
         self._try_enter()
         groups = self._groups()
+        if self.overtaking is not None and overtaking.update(self, groups):
+            groups = self._groups()
         idm, dt = self.idm, self.dt
         accels: list[tuple[Vehicle, float]] = []
         for (lane, direction), lst in groups.items():
@@ -157,6 +164,7 @@ class Road:
             if veh.v < veh.v0 - 1.0:
                 veh.t_slow += dt
         self.t += dt
+        self.n_steps += 1
         self._count_collisions(groups)
         self._remove_finished()
 

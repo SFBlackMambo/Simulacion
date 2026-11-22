@@ -187,22 +187,23 @@
       "subtasks": [
         {
           "name": "Criterio de hueco seguro",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3.5
         },
         {
           "name": "Máquina de estados del rebase",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 2
         },
         {
           "name": "Tests de escenarios deterministas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:15:08-07:00"
     },
     {
       "id": "F006",

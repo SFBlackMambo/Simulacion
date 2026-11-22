@@ -41,3 +41,11 @@
 ## F004 - 2026-11-22
 - road.py: carril por sentido, choque frontal contrario con frenado de emergencia (t_emergency=4 s, b=5 m/s², d_min=30 m), bloqueo de entrada, conteo de colisiones frontales.
 - Verificado: 27 tests pasan. Siguiente: F005 (rebase).
+
+---
+
+## F005 - 2026-11-22
+- overtaking.py: criterio de hueco seguro (plan con perfil de aceleración IDM, cotas pesimistas para los demás, margen de 6 s con el contrario, vehículo virtual en la entrada), máquina SIGUIENDO/REBASANDO/REGRESANDO, aborto por amenaza frontal, cadena de hasta 4 vehículos.
+- Hallazgo: el primer diseño (margen fijo de velocidad) provocó bloqueos frente a frente que paralizaban la carretera. Se corrigió con cotas físicas (a_max), margen en tiempo y detección de contrario detenido.
+- Verificado: 38 tests, cobertura 99 %; en 4 semillas de 1 h: 0 colisiones, 0 frenados de emergencia, 0 abortos, sin cola creciente.
+- Siguiente: F006 (sondas y réplicas).
