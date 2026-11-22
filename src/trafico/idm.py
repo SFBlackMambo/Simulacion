@@ -50,6 +50,11 @@ def step(
         a = idm_acceleration(vehicle.v, vehicle.v0, None, None, p)
     else:
         a = idm_acceleration(vehicle.v, vehicle.v0, vehicle.gap_to(leader), leader.v, p)
+    advance(vehicle, a, dt)
+
+
+def advance(vehicle: Vehicle, a: float, dt: float) -> None:
+    """Integra el movimiento con aceleración `a` durante `dt` (balística)."""
     v_nueva = max(0.0, vehicle.v + a * dt)
     vehicle.x += 0.5 * (vehicle.v + v_nueva) * dt
     vehicle.v = v_nueva

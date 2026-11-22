@@ -90,17 +90,18 @@
       "subtasks": [
         {
           "name": "Clase Road y bucle de pasos dt=0.1 s",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         },
         {
           "name": "Registro de tiempos de viaje",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 0.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:02:17-07:00"
     },
     {
       "id": "F003",

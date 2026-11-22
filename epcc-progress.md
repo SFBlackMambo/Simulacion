@@ -23,3 +23,9 @@
 - Parámetros IDM por defecto: a=1.0 m/s², b=1.5, T=1.5 s, s0=2 m, delta=4.
 - Verificado: 9 tests pasan, cobertura 100 %.
 - Siguiente: `/epcc-code F002` (Carretera de un carril)
+
+---
+
+## F002 - 2026-11-22
+- road.py: Road (un carril por sentido, entrada con hueco, salida, registro de tiempos, conteo de colisiones). vehicle.py ampliado (dirección, carril, métricas). idm.advance extraído.
+- Verificado: 15 tests pasan. Siguiente: F003.
