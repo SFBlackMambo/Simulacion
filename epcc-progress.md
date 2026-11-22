@@ -14,3 +14,12 @@
 - Commit: 6c9665b
 - Sin remote todavía (falta SSH y repo en GitHub), así que no se hizo push.
 - Siguiente: `/epcc-code F001` (Vehículo e IDM)
+
+---
+
+## Sesión 3: F001 Vehículo e IDM - 2026-11-21
+- Creados: src/trafico/vehicle.py (Vehicle, conversiones km/h<->m/s), src/trafico/idm.py (IDMParams, idm_acceleration, step), tests/test_idm.py.
+- Decisiones: unidades SI; integración balística con dt=0.1 s; `x` es la posición del frente; el atributo de sentido se añade en F004.
+- Parámetros IDM por defecto: a=1.0 m/s², b=1.5, T=1.5 s, s0=2 m, delta=4.
+- Verificado: 9 tests pasan, cobertura 100 %.
+- Siguiente: `/epcc-code F002` (Carretera de un carril)

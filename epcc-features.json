@@ -54,22 +54,23 @@
       "subtasks": [
         {
           "name": "Dataclass Vehicle",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 0.5
         },
         {
           "name": "Implementar IDM",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1
         },
         {
           "name": "Tests de IDM",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-21T23:56:45-07:00"
     },
     {
       "id": "F002",
