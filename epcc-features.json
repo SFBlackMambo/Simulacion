@@ -1,0 +1,293 @@
+{
+  "_warning": "Las definiciones de features son INMUTABLES tras la planificación.",
+  "_planApproved": true,
+  "_planApprovedAt": "2026-11-21T23:51:02-07:00",
+  "_modifiableFields": [
+    "passes",
+    "status",
+    "subtasks[].status"
+  ],
+  "project": "Simulación de tráfico en carretera de 2 carriles",
+  "features": [
+    {
+      "id": "INFRA-001",
+      "name": "Estructura del proyecto",
+      "description": "pyproject, venv, .gitignore, README, pytest",
+      "priority": "P0",
+      "implementationOrder": 1,
+      "dependencies": [],
+      "estimatedHours": 1.5,
+      "planReference": "EPCC_PLAN.md#fase-1-base",
+      "acceptanceCriteria": [
+        "pip install -e . funciona en un venv limpio",
+        "pytest se ejecuta sin errores",
+        "El repo se puede clonar y ejecutar en otra PC siguiendo el README"
+      ],
+      "subtasks": [
+        {
+          "name": "Estructura, pyproject, venv, .gitignore, README",
+          "status": "pending",
+          "estimatedHours": 1.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F001",
+      "name": "Vehículo e IDM",
+      "description": "Vehículo con velocidad deseada y modelo de seguimiento IDM",
+      "priority": "P0",
+      "implementationOrder": 2,
+      "dependencies": [
+        "INFRA-001"
+      ],
+      "estimatedHours": 2.5,
+      "planReference": "EPCC_PLAN.md#fase-1-base",
+      "acceptanceCriteria": [
+        "Un vehículo solo converge a su velocidad deseada",
+        "Detrás de un vehículo más lento frena y mantiene distancia",
+        "Nunca hay solape entre vehículos consecutivos"
+      ],
+      "subtasks": [
+        {
+          "name": "Dataclass Vehicle",
+          "status": "pending",
+          "estimatedHours": 0.5
+        },
+        {
+          "name": "Implementar IDM",
+          "status": "pending",
+          "estimatedHours": 1
+        },
+        {
+          "name": "Tests de IDM",
+          "status": "pending",
+          "estimatedHours": 1
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F002",
+      "name": "Carretera de un carril",
+      "description": "Carretera con entrada/salida de vehículos y registro de tiempos",
+      "priority": "P0",
+      "implementationOrder": 3,
+      "dependencies": [
+        "F001"
+      ],
+      "estimatedHours": 2,
+      "planReference": "EPCC_PLAN.md#fase-1-base",
+      "acceptanceCriteria": [
+        "Sin tráfico el tiempo de viaje es L / v0",
+        "Los vehículos que llegan al final salen y se registra su tiempo"
+      ],
+      "subtasks": [
+        {
+          "name": "Clase Road y bucle de pasos dt=0.1 s",
+          "status": "pending",
+          "estimatedHours": 1.5
+        },
+        {
+          "name": "Registro de tiempos de viaje",
+          "status": "pending",
+          "estimatedHours": 0.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F003",
+      "name": "Llegadas de tráfico",
+      "description": "Llegadas de Poisson con velocidades deseadas aleatorias y semilla",
+      "priority": "P0",
+      "implementationOrder": 4,
+      "dependencies": [
+        "F002"
+      ],
+      "estimatedHours": 1.5,
+      "planReference": "EPCC_PLAN.md#fase-2-trafico-y-rebase",
+      "acceptanceCriteria": [
+        "La tasa media de llegadas coincide con la configurada",
+        "Misma semilla produce el mismo tráfico",
+        "Velocidades deseadas dentro del rango configurado"
+      ],
+      "subtasks": [
+        {
+          "name": "Generador Poisson y velocidades deseadas",
+          "status": "pending",
+          "estimatedHours": 1
+        },
+        {
+          "name": "Tests estadísticos y de semilla",
+          "status": "pending",
+          "estimatedHours": 0.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F004",
+      "name": "Carril contrario",
+      "description": "Segundo carril en sentido contrario e interacción entre carriles",
+      "priority": "P0",
+      "implementationOrder": 5,
+      "dependencies": [
+        "F002"
+      ],
+      "estimatedHours": 2.5,
+      "planReference": "EPCC_PLAN.md#fase-2-trafico-y-rebase",
+      "acceptanceCriteria": [
+        "Cada sentido tiene su flujo de vehículos independiente",
+        "Se puede consultar el tráfico contrario en un tramo dado"
+      ],
+      "subtasks": [
+        {
+          "name": "Dos carriles y coordenadas por sentido",
+          "status": "pending",
+          "estimatedHours": 1.5
+        },
+        {
+          "name": "Consulta de hueco en el carril contrario",
+          "status": "pending",
+          "estimatedHours": 1
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F005",
+      "name": "Rebase",
+      "description": "Criterio de hueco seguro y máquina de estados SIGUIENDO, REBASANDO, REGRESANDO",
+      "priority": "P0",
+      "implementationOrder": 6,
+      "dependencies": [
+        "F003",
+        "F004"
+      ],
+      "estimatedHours": 7,
+      "planReference": "EPCC_PLAN.md#fase-2-trafico-y-rebase",
+      "acceptanceCriteria": [
+        "Con el carril contrario libre, el rápido rebasa al lento",
+        "Con el carril contrario ocupado, el rápido se queda detrás",
+        "No hay colisiones frontales ni solapes en ninguna prueba",
+        "Se registra el número de rebases y el tiempo de espera"
+      ],
+      "subtasks": [
+        {
+          "name": "Criterio de hueco seguro",
+          "status": "pending",
+          "estimatedHours": 3.5
+        },
+        {
+          "name": "Máquina de estados del rebase",
+          "status": "pending",
+          "estimatedHours": 2
+        },
+        {
+          "name": "Tests de escenarios deterministas",
+          "status": "pending",
+          "estimatedHours": 1.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F006",
+      "name": "Experimento con sondas",
+      "description": "Vehículos sonda, números aleatorios comunes y réplicas",
+      "priority": "P0",
+      "implementationOrder": 7,
+      "dependencies": [
+        "F005"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#fase-3-experimentos",
+      "acceptanceCriteria": [
+        "Las sondas se inyectan con v0 configurable sin cambiar el tráfico de fondo",
+        "Varias semillas generan réplicas reproducibles"
+      ],
+      "subtasks": [
+        {
+          "name": "Inyección de sondas",
+          "status": "pending",
+          "estimatedHours": 1.5
+        },
+        {
+          "name": "Ejecutor de réplicas",
+          "status": "pending",
+          "estimatedHours": 1.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F007",
+      "name": "Estadística y gráficas",
+      "description": "Media, IC 95 %, diferencia pareada 120 vs 130 y gráficas",
+      "priority": "P1",
+      "implementationOrder": 8,
+      "dependencies": [
+        "F006"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#fase-3-experimentos",
+      "acceptanceCriteria": [
+        "Se reporta la diferencia de tiempo 130 vs 120 con IC 95 %",
+        "Gráficas de tiempo vs v0 y de retraso vs densidad"
+      ],
+      "subtasks": [
+        {
+          "name": "Estadística pareada",
+          "status": "pending",
+          "estimatedHours": 2
+        },
+        {
+          "name": "Gráficas",
+          "status": "pending",
+          "estimatedHours": 2
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F008",
+      "name": "Calibración y publicación",
+      "description": "Sensibilidad, README con resultados y push a GitHub",
+      "priority": "P1",
+      "implementationOrder": 9,
+      "dependencies": [
+        "F007"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#fase-4-cierre",
+      "acceptanceCriteria": [
+        "Análisis de sensibilidad a densidad, umbral y margen de rebase",
+        "README con resultados y cómo reproducirlos",
+        "Repo publicado en GitHub y clonable"
+      ],
+      "subtasks": [
+        {
+          "name": "Análisis de sensibilidad",
+          "status": "pending",
+          "estimatedHours": 2.5
+        },
+        {
+          "name": "README y push",
+          "status": "pending",
+          "estimatedHours": 1.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    }
+  ]
+}
