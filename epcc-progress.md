@@ -56,3 +56,10 @@
 - simulation.py: SimConfig, run_simulation (números aleatorios comunes, sondas con instantes de entrada fijos), RunResult. experiments.py: run_replicas (serie o procesos), con_flujo.
 - Verificado: sin tráfico la sonda tarda L/v0; reproducible; misma semilla => mismo fondo y mismas entradas; paralelo == serie.
 - Siguiente: F007 (estadística y gráficas).
+
+---
+
+## F007 - 2026-11-22
+- stats.py (media, IC95 con t de Student, diferencia pareada, ganancia ideal), plots.py (3 gráficas validadas con la paleta: azul/naranja, etiquetas directas y leyenda), scripts/run_experiment.py (CSV + PNG).
+- Verificado: 6+1 tests nuevos; sin tráfico la ganancia pareada es la ideal; con tráfico es menor. Prueba corta revisada visualmente.
+- Siguiente: F008 (experimento completo, sensibilidad, README, push).
