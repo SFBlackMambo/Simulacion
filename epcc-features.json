@@ -153,17 +153,18 @@
       "subtasks": [
         {
           "name": "Dos carriles y coordenadas por sentido",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         },
         {
           "name": "Consulta de hueco en el carril contrario",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:03:30-07:00"
     },
     {
       "id": "F005",

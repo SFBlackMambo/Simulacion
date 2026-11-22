@@ -35,3 +35,9 @@
 ## F003 - 2026-11-22
 - arrivals.py: PoissonArrivals (tasa, v0 Normal truncada, semilla propia). Road.add_source.
 - Verificado: 21 tests pasan (tasa, rango, semilla, integración sin colisiones). Siguiente: F004.
+
+---
+
+## F004 - 2026-11-22
+- road.py: carril por sentido, choque frontal contrario con frenado de emergencia (t_emergency=4 s, b=5 m/s², d_min=30 m), bloqueo de entrada, conteo de colisiones frontales.
+- Verificado: 27 tests pasan. Siguiente: F005 (rebase).

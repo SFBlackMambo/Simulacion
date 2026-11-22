@@ -23,10 +23,16 @@ class Road:
         length: float = 20_000.0,
         dt: float = 0.1,
         idm: IDMParams = IDMParams(),
+        t_emergency: float = 4.0,
+        b_emergency: float = 5.0,
+        d_emergency: float = 30.0,
     ) -> None:
         self.length = length
         self.dt = dt
         self.idm = idm
+        self.t_emergency = t_emergency  # tiempo a colisión frontal que dispara el frenado
+        self.b_emergency = b_emergency  # deceleración de emergencia, m/s²
+        self.d_emergency = d_emergency  # distancia mínima frente a frente, m
         self.t = 0.0
         self.vehicles: list[Vehicle] = []
         self.finished: list[Vehicle] = []
@@ -94,9 +100,13 @@ class Road:
         """Velocidad de entrada, o None si no hay hueco suficiente."""
         last = None
         for u in self.vehicles:
-            if u.direction == veh.direction and u.lane == veh.lane:
+            if u.lane != veh.lane:
+                continue
+            if u.direction == veh.direction:
                 if last is None or u.x < last.x:
                     last = u
+            elif self.front_in_opposite_frame(u) < 200.0 and self.front_in_opposite_frame(u) + u.length > 0:
+                return None  # un rebasante contrario viene de frente por este carril
         if last is None:
             return veh.v0
         gap = last.rear  # el frente del que entra está en x = 0
@@ -104,6 +114,10 @@ class Road:
         if gap >= self.idm.s0 + v_in * self.idm.T:
             return v_in
         return None
+
+    def front_in_opposite_frame(self, other: Vehicle) -> float:
+        """Posición del frente de `other` medida en el sistema del sentido contrario."""
+        return self.length - other.x
 
     # ------------------------------------------------------------------
     # Paso de simulación
@@ -126,13 +140,16 @@ class Road:
         groups = self._groups()
         idm, dt = self.idm, self.dt
         accels: list[tuple[Vehicle, float]] = []
-        for lst in groups.values():
+        for (lane, direction), lst in groups.items():
+            opposite = groups.get((lane, -direction))
             leader = None
             for veh in lst:
                 if leader is None:
                     a = idm_acceleration(veh.v, veh.v0, None, None, idm)
                 else:
                     a = idm_acceleration(veh.v, veh.v0, leader.rear - veh.x, leader.v, idm)
+                if opposite:
+                    a = self._head_on_brake(veh, opposite, a)
                 accels.append((veh, a))
                 leader = veh
         for veh, a in accels:
@@ -143,11 +160,30 @@ class Road:
         self._count_collisions(groups)
         self._remove_finished()
 
+    def _head_on_brake(self, veh: Vehicle, opposite: list[Vehicle], a: float) -> float:
+        """Frenado de emergencia si hay un choque frontal inminente en este carril."""
+        for other in opposite:
+            gap = self.front_in_opposite_frame(other) - veh.x  # frente contra frente
+            if gap <= 0:
+                continue  # ya se cruzaron
+            closing = veh.v + other.v
+            if gap < closing * self.t_emergency + self.d_emergency:
+                veh.emergency_steps += 1
+                return min(a, -self.b_emergency)
+        return a
+
     def _count_collisions(self, groups: dict[tuple[int, int], list[Vehicle]]) -> None:
-        for lst in groups.values():
+        for (lane, direction), lst in groups.items():
             for lead, veh in zip(lst, lst[1:]):
                 if veh.x > lead.rear:
                     self.collisions += 1
+            if direction != 1:
+                continue
+            for veh in lst:  # choque frontal con vehículos contrarios del mismo carril
+                for other in groups.get((lane, -1), ()):
+                    o_front = self.front_in_opposite_frame(other)
+                    if veh.x > o_front and veh.rear < o_front + other.length:
+                        self.collisions += 1
 
     def _remove_finished(self) -> None:
         if not any(v.x >= self.length for v in self.vehicles):
