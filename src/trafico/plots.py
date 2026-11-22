@@ -63,11 +63,10 @@ def plot_gain_vs_flow(flows, gain, hw, ideal: float, path: str, v_slow: float, v
     fig, ax = _ax(f"Tiempo que se gana al ir a {v_fast:g} en vez de {v_slow:g} km/h",
                   "Flujo por sentido (veh/h)", "Tiempo ganado (s)")
     ax.axhline(ideal, color=INK2, linewidth=1.5, linestyle="--", label="Ideal (vía libre)")
-    ax.annotate("Ideal (vía libre)", (flows[0], ideal), xytext=(0, 6), textcoords="offset points",
-                color=INK2, fontsize=9)
     _linea(ax, flows, gain, hw, SERIES[1], "Con tráfico y rebases")
-    ax.set_ylim(bottom=0)
-    _guardar(fig, ax, path)
+    ax.set_ylim(0, ideal * 1.15)
+    ax.legend(frameon=False, labelcolor=INK2, fontsize=9, loc="center right")
+    _guardar(fig, ax, path, leyenda=False)
 
 
 def plot_time_vs_speed(speeds, times, hw, ideal_times, path: str, flow: float) -> None:

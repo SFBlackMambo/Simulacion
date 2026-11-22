@@ -286,17 +286,18 @@
       "subtasks": [
         {
           "name": "Análisis de sensibilidad",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 2.5
         },
         {
           "name": "README y push",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:45:05-07:00"
     }
   ]
 }

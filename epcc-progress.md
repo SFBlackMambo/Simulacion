@@ -63,3 +63,10 @@
 - stats.py (media, IC95 con t de Student, diferencia pareada, ganancia ideal), plots.py (3 gráficas validadas con la paleta: azul/naranja, etiquetas directas y leyenda), scripts/run_experiment.py (CSV + PNG).
 - Verificado: 6+1 tests nuevos; sin tráfico la ganancia pareada es la ideal; con tráfico es menor. Prueba corta revisada visualmente.
 - Siguiente: F008 (experimento completo, sensibilidad, README, push).
+
+---
+
+## F008 - 2026-11-22
+- Experimento principal (20 km, 4 flujos, 8 semillas) y sensibilidad (10 variantes, 6 semillas): 0 colisiones.
+- Resultados en README.md y docs/. Ganancia 120->130: 32.9 s (100 veh/h), 18.0 (200), 6.9 (300), 5.1 (450); ideal 46.2 s. Sin rebases: 0.1 s.
+- 53 tests pasan. Pendiente (usuario): push a GitHub desde su consola.
