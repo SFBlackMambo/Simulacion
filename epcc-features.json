@@ -26,12 +26,14 @@
       "subtasks": [
         {
           "name": "Estructura, pyproject, venv, .gitignore, README",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-21T23:53:40-07:00",
+      "commit": "6c9665b"
     },
     {
       "id": "F001",
