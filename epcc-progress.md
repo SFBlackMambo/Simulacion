@@ -29,3 +29,9 @@
 ## F002 - 2026-11-22
 - road.py: Road (un carril por sentido, entrada con hueco, salida, registro de tiempos, conteo de colisiones). vehicle.py ampliado (dirección, carril, métricas). idm.advance extraído.
 - Verificado: 15 tests pasan. Siguiente: F003.
+
+---
+
+## F003 - 2026-11-22
+- arrivals.py: PoissonArrivals (tasa, v0 Normal truncada, semilla propia). Road.add_source.
+- Verificado: 21 tests pasan (tasa, rango, semilla, integración sin colisiones). Siguiente: F004.

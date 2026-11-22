@@ -4,6 +4,7 @@ import math
 from collections import deque
 from operator import attrgetter
 
+from .arrivals import PoissonArrivals
 from .idm import IDMParams, advance, idm_acceleration
 from .vehicle import Vehicle
 
@@ -31,6 +32,7 @@ class Road:
         self.finished: list[Vehicle] = []
         self.collisions = 0
         self._pending: dict[int, deque[Vehicle]] = {1: deque(), -1: deque()}
+        self._sources: dict[int, PoissonArrivals] = {}
         self._next_id = 0
 
     # ------------------------------------------------------------------
@@ -46,6 +48,10 @@ class Road:
         veh = self._nuevo(v0, direction, probe)
         self._pending[direction].append(veh)
         return veh
+
+    def add_source(self, direction: int, source: PoissonArrivals) -> None:
+        """Conecta una fuente de llegadas a la entrada de un sentido."""
+        self._sources[direction] = source
 
     def place(
         self,
@@ -113,6 +119,9 @@ class Road:
 
     def step(self) -> None:
         """Avanza la simulación un paso `dt`."""
+        for direction, source in self._sources.items():
+            for v0 in source.due(self.t):
+                self.inject(v0, direction)
         self._try_enter()
         groups = self._groups()
         idm, dt = self.idm, self.dt

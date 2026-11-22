@@ -122,17 +122,18 @@
       "subtasks": [
         {
           "name": "Generador Poisson y velocidades deseadas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1
         },
         {
           "name": "Tests estadísticos y de semilla",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 0.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:02:36-07:00"
     },
     {
       "id": "F004",
