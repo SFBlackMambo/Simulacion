@@ -223,17 +223,18 @@
       "subtasks": [
         {
           "name": "Inyección de sondas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         },
         {
           "name": "Ejecutor de réplicas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 1.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T00:15:51-07:00"
     },
     {
       "id": "F007",

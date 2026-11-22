@@ -49,3 +49,10 @@
 - Hallazgo: el primer diseño (margen fijo de velocidad) provocó bloqueos frente a frente que paralizaban la carretera. Se corrigió con cotas físicas (a_max), margen en tiempo y detección de contrario detenido.
 - Verificado: 38 tests, cobertura 99 %; en 4 semillas de 1 h: 0 colisiones, 0 frenados de emergencia, 0 abortos, sin cola creciente.
 - Siguiente: F006 (sondas y réplicas).
+
+---
+
+## F006 - 2026-11-22
+- simulation.py: SimConfig, run_simulation (números aleatorios comunes, sondas con instantes de entrada fijos), RunResult. experiments.py: run_replicas (serie o procesos), con_flujo.
+- Verificado: sin tráfico la sonda tarda L/v0; reproducible; misma semilla => mismo fondo y mismas entradas; paralelo == serie.
+- Siguiente: F007 (estadística y gráficas).
