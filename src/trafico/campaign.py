@@ -8,7 +8,8 @@ Archivos en la carpeta de salida:
     campana.json  configuración base, barridos, velocidades y semillas
     corridas.csv  una fila por corrida (resumen del tráfico de fondo)
     sondas.csv    una fila por sonda
-    viajes.csv    (opcional) una fila por vehículo de cada corrida
+    viajes.csv    una fila por vehículo de cada corrida (se apaga con guardar_viajes=False);
+                  columnas descritas en docs/datos.md
 """
 
 import csv
@@ -28,7 +29,7 @@ CAMPOS_SONDA = ["indice", "t_entrada", "tiempo_viaje", "tiempo_libre", "retraso"
 CAMPOS_CORRIDA = ["colisiones", "vehiculos_emergencia", "n_fondo", "retraso_fondo", "retraso_fondo_mediana",
                   "rebases_fondo", "alcances_fondo", "veces_rebasado_fondo", "t_lento_fondo",
                   "rebases_sondas", "alcances_sondas", "rebases_en_cadena_fondo", "camiones_fondo",
-                  "retraso_camiones"]
+                  "retraso_camiones", "con_viajes"]
 
 
 def parse_sweep(texto: str) -> tuple[str, list]:
@@ -93,6 +94,11 @@ class _Escritor:
 
     def __init__(self, path: Path, fields: list[str]):
         nuevo = not path.exists() or path.stat().st_size == 0
+        if not nuevo:  # campaña reanudada: se respetan las columnas que ya tiene el archivo
+            with open(path, newline="") as f:
+                previas = next(csv.reader(f), None)
+            if previas:
+                fields = previas
         self.f = open(path, "a", newline="")
         self.w = csv.DictWriter(self.f, fieldnames=fields, extrasaction="ignore")
         if nuevo:
@@ -130,7 +136,7 @@ def run_campaign(
     seeds: list[int],
     out: str | Path,
     workers: int = 1,
-    guardar_viajes: bool = False,
+    guardar_viajes: bool = True,
     verbose: bool = True,
 ) -> Path:
     """Corre (o reanuda) una campaña y deja los datos crudos en `out`."""
@@ -141,12 +147,13 @@ def run_campaign(
     spec_path = out / "campana.json"
     if spec_path.exists():
         previo = json.loads(spec_path.read_text())
-        fijo = ("config", "barridos", "viajes")
+        fijo = ("config", "barridos")  # los viajes se pueden encender al reanudar
         if any(previo.get(c) != json.loads(json.dumps(spec[c])) for c in fijo):
             raise ValueError(f"{out} ya tiene otra campaña; usa otra carpeta de salida")
         # se pueden añadir semillas o velocidades a una campaña existente
         spec["velocidades"] = sorted(set(previo["velocidades"]) | set(spec["velocidades"]))
         spec["semillas"] = sorted(set(previo["semillas"]) | set(spec["semillas"]))
+        spec["viajes"] = bool(previo.get("viajes")) or guardar_viajes
     spec_path.write_text(json.dumps(spec, indent=2, ensure_ascii=False))
 
     lista = combos(base, sweeps)
@@ -178,7 +185,7 @@ def run_campaign(
             w_viaj.write([{**cab, **t} for t in r["viajes"]])
             w_viaj.flush()
         w_sond.flush()
-        w_corr.write([{**cab, **r["corrida"]}])  # al final: marca la corrida como hecha
+        w_corr.write([{**cab, **r["corrida"], "con_viajes": int(w_viaj is not None)}])  # al final: marca la corrida como hecha
         w_corr.flush()
 
     t0, n = time.time(), 0

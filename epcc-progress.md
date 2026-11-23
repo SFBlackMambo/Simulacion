@@ -256,3 +256,11 @@
 ## INFRA-002 - 2026-11-23
 - tests/test_huella.py + tests/data/huella.json: 5 escenarios cortos (recta, curvas, sin rebases, realista en recta, realista en montaña con 20 % camiones). Hash SHA-256 de los campos de la dinámica de cada viaje (las columnas nuevas no cuentan), tiempos de sonda, colisiones. 7 s.
 - Idéntica en CPython 3.14 y PyPy 3.11. Regenerar solo si el cambio es intencional: `python tests/test_huella.py --actualizar`.
+
+---
+
+## F027 - 2026-11-23
+- Las campañas guardan viajes.csv por defecto; `--sin-viajes` lo apaga (`--viajes` se sigue aceptando). Al reanudar se puede encender: las corridas nuevas guardan viajes y `corridas.csv` marca `con_viajes`. Al reanudar, un CSV existente conserva sus columnas.
+- Menú: "¿Guardar el viaje de cada vehículo?" ahora trae "sí" por defecto.
+- docs/datos.md: diccionario de columnas.
+- Verificado: 175 tests; huella idéntica.

@@ -83,3 +83,26 @@ def test_cli_campana_y_graficar(tmp_path, capsys):
     assert (tmp_path / "graficas" / "ganancia.png").exists()
     main(["graficar", str(tmp_path), "--x", "flujo", "--salida", str(tmp_path / "g2")])
     assert (tmp_path / "g2" / "ganancia.png").exists()
+
+
+def test_viajes_por_defecto_y_al_reanudar(tmp_path):
+    sweeps = [("flow_per_hour", ["150"])]
+    run_campaign(BASE, sweeps, [130], [1], tmp_path / "a", verbose=False)
+    with open(tmp_path / "a" / "viajes.csv") as f:
+        filas = list(csv.DictReader(f))
+    assert filas and {"combo", "flow_per_hour", "v_sonda", "semilla", "tiempo_viaje"} <= set(filas[0])
+    # una campaña vieja sin viajes se puede reanudar guardándolos en las corridas nuevas
+    b = tmp_path / "b"
+    run_campaign(BASE, sweeps, [130], [1], b, guardar_viajes=False, verbose=False)
+    assert not (b / "viajes.csv").exists()
+    run_campaign(BASE, sweeps, [130], [1, 2], b, verbose=False)
+    with open(b / "viajes.csv") as f:
+        assert {r["semilla"] for r in csv.DictReader(f)} == {"2"}
+    with open(b / "corridas.csv") as f:
+        assert [r["con_viajes"] for r in csv.DictReader(f)] == ["0", "1"]
+
+
+def test_cli_sin_viajes(tmp_path):
+    main(["campana", "--longitud", "2000", "--calentamiento", "50", "--sondas", "1", "--velocidades", "130",
+          "--semillas", "1", "--sin-viajes", "--salida", str(tmp_path)])
+    assert not (tmp_path / "viajes.csv").exists()

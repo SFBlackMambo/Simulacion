@@ -146,8 +146,8 @@ class Menu:
         args += ["--semillas", str(self.preguntar("Réplicas (semillas) por combinación", 8, int))]
         args += ["--nucleos", str(self.preguntar("Núcleos a usar", max(1, (os.cpu_count() or 2) - 1), int))]
         args += ["--salida", self.preguntar("Carpeta de la campaña", f"results/campana_{time.strftime('%Y%m%d_%H%M%S')}")]
-        if self.si_no("¿Guardar también el viaje de cada vehículo? (archivos grandes)", False):
-            args.append("--viajes")
+        if not self.si_no("¿Guardar el viaje de cada vehículo (viajes.csv, para analizarlo después)?", True):
+            args.append("--sin-viajes")
         return ["campana", *args]
 
     def graficar(self) -> list[str]:

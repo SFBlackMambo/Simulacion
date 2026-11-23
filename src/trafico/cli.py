@@ -129,7 +129,9 @@ def cmd_campana(argv=None):
     ap.add_argument("--velocidades", type=float, nargs="+", default=[120, 130], help="velocidades de sonda, km/h")
     ap.add_argument("--semillas", type=int, default=8, help="réplicas por combinación")
     ap.add_argument("--nucleos", type=int, default=1, help="procesos en paralelo")
-    ap.add_argument("--viajes", action="store_true", help="guardar también el viaje de cada vehículo")
+    ap.add_argument("--viajes", action="store_true", help=argparse.SUPPRESS)  # ya es lo normal; se acepta por compatibilidad
+    ap.add_argument("--sin-viajes", action="store_true",
+                    help="no guardar viajes.csv (el viaje de cada vehículo; se guarda por defecto)")
     ap.add_argument("--sin-graficas", action="store_true")
     ap.add_argument("--rapido", action="store_true",
                     help="simular con PyPy (de 2 a 5 veces más rápido; instálalo con scripts/instalar_pypy.sh)")
@@ -140,7 +142,7 @@ def cmd_campana(argv=None):
     base = config_from_args(args)
     sweeps = [parse_sweep(b) for b in args.barrer]
     out = run_campaign(base, sweeps, args.velocidades, list(range(1, args.semillas + 1)), args.salida,
-                       workers=args.nucleos, guardar_viajes=args.viajes)
+                       workers=args.nucleos, guardar_viajes=not args.sin_viajes)
     if sweeps and not args.sin_graficas:
         try:
             from .analysis import plot_campaign

@@ -127,8 +127,9 @@ trafico graficar results/curvas --x flujo --serie trazado --comparar 120 130
   `overtaking.t_guard` y `overtaking.convoy`. `--realista` también vale para campañas.
 - Cada corrida se guarda en cuanto termina: si se corta, el mismo comando **reanuda**. Con más `--semillas`
   o `--velocidades` se amplía una campaña existente sin repetir lo hecho.
-- Datos crudos: `corridas.csv` (resumen del tráfico de fondo por corrida), `sondas.csv` (cada sonda) y,
-  con `--viajes`, `viajes.csv` (cada vehículo de cada corrida).
+- Datos crudos: `corridas.csv` (resumen del tráfico de fondo por corrida), `sondas.csv` (cada sonda) y
+  `viajes.csv` (cada vehículo de cada corrida, para analizarlo después; `--sin-viajes` lo apaga). Qué es cada
+  columna: [docs/datos.md](docs/datos.md).
 - `graficar` genera tablas con media ± IC 95 % y gráficas sin volver a simular.
 
 ## Resultados fase 3: modelo realista (20 km, 8 réplicas)

@@ -35,6 +35,7 @@ def test_campana_con_dos_barridos_y_valor_invalido():
         "0", "120 130", "4", "3", "2", "results/c", "n", "n",
     ])
     assert "Valor no válido" in out
+    assert "--sin-viajes" in m.ultimo  # respondió que no a guardar los viajes
     assert m.ultimo.count("--barrer") == 2
     assert "flujo=100,300" in m.ultimo and "longitud=5000,10000" in m.ultimo
     assert m.ultimo[m.ultimo.index("--velocidades") + 1:m.ultimo.index("--velocidades") + 3] == ["120", "130"]
