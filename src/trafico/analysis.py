@@ -26,6 +26,9 @@ ETIQUETAS = {
     "trazado": "Tipo de carretera",
     "relieve": "Relieve",
     "trucks.share": "Fracción de camiones",
+    "overtaking.convoy": "Rebase en cadena",
+    "reaction_time": "Tiempo de reacción (s)",
+    "overtaking.t_lane_change": "Duración del cambio de carril (s)",
     "sight_clearance": "Despeje lateral en curvas (m)",
     "curve_a_lat": "Aceleración lateral en curva (m/s²)",
     "overtaking": "Rebases",
@@ -42,6 +45,8 @@ def etiqueta(param: str) -> str:
 
 def valor_legible(param: str, v) -> str:
     """Texto corto para un valor de parámetro (p. ej. 20000 m -> "20 km")."""
+    if param == "overtaking.convoy":
+        return "En cadena" if str(v).lower() in ("true", "1", "1.0") else "Uno a uno"
     if param == "relieve":
         return {"plano": "Plano", "lomerio": "Lomerío", "montanoso": "Montañoso"}.get(v, v)
     if param == "trucks.share" and isinstance(v, float):

@@ -88,6 +88,27 @@ Controles: `Espacio` pausa, `+`/`-` velocidad (×1 a ×100), rueda o `Z`/`X` zoo
 `S` seguir a la sonda, `Tab` otra sonda, clic en el mapa para ir a un punto, `R` reiniciar,
 `F11` pantalla completa, `Esc` salir.
 
+### Comportamiento realista (fase 3)
+
+Todo esto viene **apagado por defecto** (así los resultados de las fases 1 y 2 se reproducen exactamente).
+`--realista` lo enciende con valores razonables, y cada pieza se puede ajustar o barrer por separado:
+
+| Qué | Cómo se activa | Qué hace |
+|---|---|---|
+| Camiones | `--camiones 0.15` | 16.5 m, aceleran 0.5 m/s². Velocidad deseada con moda en 105 km/h (96 % entre 90 y 110) y 2 % de casos raros: muy lentos (60-90) o con exceso (110-125). |
+| Pendientes | `--relieve lomerio` / `montanoso`, o `--param "pendientes=1000:3000:6;..."` (%) | En subida, por potencia: un camión va a ~69 km/h en 3 %, ~39 en 6 % y ~31 en 8 %. En bajada, freno de motor: 78 km/h en 5 %, 66 en 7 % y 54 en 9 %. Los autos casi no lo notan. |
+| Cambio de carril gradual | `--param overtaking.t_lane_change=3` | Cambiar de carril tarda 3 s y mientras tanto ocupa los dos carriles. |
+| Rebase en cadena | `--param overtaking.convoy=1` | Se puede seguir a otro que ya rebasa, si el rebase propio es seguro. |
+| Visión tapada | `--param overtaking.blocked_view=1` | Detrás de un camión a menos de 3 s no se ve el carril contrario; detrás de un auto a menos de 2 s se ven 500 m. |
+| Límites de velocidad | `--param limite=90` o `--param "limites=5000:8000:70"` | Se frena antes de la señal. Con `respetan_limite=0.8`, el 20 % se pasa entre 10 y 30 %. |
+| Zonas de no rebase | `--param "zonas_no_rebase=2000:5000"` o `no_rebase_sin_visibilidad=1` | Quien respeta (`respetan_no_rebase`) no empieza un rebase que invada la zona. |
+| Tipos de conductor | `--param prudentes=0.2 --param agresivos=0.15` | Prudentes: más margen, más distancia y más diferencia de velocidad para decidir rebasar. Agresivos: lo contrario. |
+| Impaciencia | `--param impaciencia=60` | Tras 60 s atrapado, el margen que exige baja poco a poco hasta la mitad. |
+| Tiempo de reacción | `--param reaccion=1.0` | Responde con 1 s de retraso, pero se anticipa como en el *Human Driver Model* (estima el hueco y mira a los 3 de delante). Los sustos y el frenado de emergencia son inmediatos. |
+
+En la animación los camiones se ven más largos y con cabina, el cambio de carril se ve, hay un perfil de alturas
+arriba, rótulos de "sube/baja x %" y señales circulares de límite de velocidad.
+
 ### Campañas
 
 ```bash
@@ -97,8 +118,9 @@ trafico graficar results/curvas --x flujo --serie trazado --comparar 120 130
 ```
 
 - Se puede barrer **cualquier parámetro** (`--barrer nombre=v1,v2,...`, repetible: se combinan todos). Nombres
-  cortos: `flujo`, `longitud`, `vehiculos`, `modo`, `trazado`, `sigma`, `v_media`, `despeje`, `a_lateral`, o
-  internos como `idm.T` y `overtaking.t_guard`.
+  cortos: `flujo`, `longitud`, `vehiculos`, `modo`, `trazado`, `relieve`, `camiones`, `sigma`, `v_media`,
+  `despeje`, `a_lateral`, `limite`, `prudentes`, `agresivos`, `impaciencia`, `reaccion`, o internos como `idm.T`,
+  `overtaking.t_guard` y `overtaking.convoy`. `--realista` también vale para campañas.
 - Cada corrida se guarda en cuanto termina: si se corta, el mismo comando **reanuda**. Con más `--semillas`
   o `--velocidades` se amplía una campaña existente sin repetir lo hecho.
 - Datos crudos: `corridas.csv` (resumen del tráfico de fondo por corrida), `sondas.csv` (cada sonda) y,
@@ -219,11 +241,14 @@ La dispersión de velocidades, el umbral para rebasar y la aceleración son los 
 
 ## Supuestos y límites
 
-Carretera plana, sin intersecciones ni clima; vehículos idénticos salvo la velocidad deseada; los conductores
-no cambian su velocidad deseada; cambio de carril instantáneo; sin límites de velocidad ni camiones; las curvas
-se modelan por su radio y la visibilidad con un despeje lateral fijo. Los parámetros no están calibrados con
-datos reales, así que los resultados son cualitativos. El siguiente paso es importar trazados reales
-(GPX/OpenStreetMap) y calibrar con aforos y velocidades medidas.
+Sin intersecciones ni clima; los conductores no cambian su velocidad deseada durante el viaje; las curvas se
+modelan por su radio y la visibilidad con un despeje lateral fijo; las crestas de las lomas no tapan la vista
+(solo las curvas y los vehículos de delante); no hay carriles de ascenso para camiones. En el modelo simple
+(por defecto) todos los vehículos son autos iguales salvo la velocidad deseada, el cambio de carril es
+instantáneo y no hay pendientes ni señales; `--realista` añade camiones, conductores distintos, cambio de carril
+lento, rebase en cadena y tiempo de reacción. Los parámetros no están calibrados con datos reales, así que los
+resultados son cualitativos. El siguiente paso es importar trazados reales (GPX/OpenStreetMap, con curvas y
+pendientes) y calibrar con aforos y velocidades medidas.
 
 ## Instalación (en cualquier PC)
 
@@ -254,11 +279,22 @@ trafico campana --barrer longitud=5000,10000,20000,40000 --barrer flujo=100,200,
 
 Las campañas de la fase 2 tardan unos 12 minutos con 15 núcleos. Todo se guarda en `results/` (ignorada por git).
 
+```bash
+# Fase 3: modelo realista
+trafico campana --realista --barrer camiones=0,0.1,0.25 --barrer relieve=plano,lomerio,montanoso --flujo 200 \
+    --velocidades 120 130 --semillas 8 --sondas 20 --nucleos 15 --salida results/f3_camiones_relieve
+trafico campana --realista --barrer flujo=100,200,300 --barrer trazado=recta,pocas,muchas \
+    --velocidades 120 130 --semillas 8 --sondas 20 --nucleos 15 --salida results/f3_realista
+trafico campana --realista --barrer overtaking.convoy=0,1 --barrer flujo=200,350 \
+    --velocidades 120 130 --semillas 8 --sondas 20 --nucleos 15 --salida results/f3_cadena
+```
+
 ## Estructura
 
 ```
-src/trafico/  vehicle, idm, road, arrivals, overtaking, geometry, simulation, recorder,
-              single, campaign, analysis, plots, plots_explore, animation, menu, cli, config
+src/trafico/  vehicle, fleet (camiones), drivers (conductores), idm (IDM y HDM), road, arrivals,
+              overtaking, geometry (curvas, visibilidad, pendientes, señales), slopes, simulation,
+              recorder, single, campaign, analysis, plots, plots_explore, animation, menu, cli, config
 tests/        pruebas con pytest
 scripts/      run_experiment.py, sensitivity.py (fase 1)
 docs/         gráficas y tablas de resultados

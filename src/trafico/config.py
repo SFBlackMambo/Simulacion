@@ -155,6 +155,7 @@ PRESET_REALISTA = {
     "overtaking.t_lane_change": 3.0,
     "overtaking.convoy": True,
     "overtaking.blocked_view": True,
+    "overtaking.no_start_braking": True,
     "drivers.share_cautious": 0.20,
     "drivers.share_aggressive": 0.15,
     "drivers.impatience_after": 60.0,
@@ -162,6 +163,8 @@ PRESET_REALISTA = {
     "drivers.no_pass_compliance": 0.90,
     "no_pass_from_sight": True,
     "reaction_time": 1.0,
+    "b_physical": 9.0,
+    "overtaking.return_closing": True,
 }
 
 

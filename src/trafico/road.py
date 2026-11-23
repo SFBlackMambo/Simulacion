@@ -14,7 +14,7 @@ from .geometry import curve_accel
 from .slopes import AUTO_GRADES, accel_limit, speed_limit
 from .idm import IDMParams, advance, hdm_acceleration, idm_acceleration
 from .overtaking import OvertakeParams
-from .vehicle import Vehicle
+from .vehicle import REBASANDO, Vehicle
 
 _POR_X = attrgetter("x")
 N_ANTICIPA = 3  # con tiempo de reacción, cuántos vehículos de delante se miran
@@ -42,6 +42,7 @@ class Road:
         drivers=None,
         driver_seed=None,
         reaction_time: float = 0.0,
+        b_physical: float = 0.0,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -58,6 +59,7 @@ class Road:
         self._idm_cache: dict = {}
         # tiempo de reacción: la aceleración se aplica con `n` pasos de retraso
         self.reaction_steps = int(round(reaction_time / dt)) if reaction_time > 0 else 0
+        self.b_physical = b_physical  # tope de frenado, m/s² (0 = sin tope, como en las fases 1 y 2)
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -237,6 +239,9 @@ class Road:
             opposite = groups.get((lane, -direction))
             leader = None
             for i_veh, veh in enumerate(lst):
+                if (leader is not None and veh.lc < 1.0 and lane == veh.lane_prev and veh.state == REBASANDO
+                        and leader.rear - veh.x > (veh.idm or idm).s0 + veh.v):
+                    leader = None  # saliendo a rebasar: el de delante ya no le estorba (salvo muy cerca)
                 v0 = veh.v0
                 g = 0.0
                 if geo is not None:
@@ -296,7 +301,9 @@ class Road:
                 buf.append(a_seguir)
                 a_dem = buf.popleft() if len(buf) > n_r else a_seguir
                 a = min(a_seguir if critico else a_dem, a_frontal)  # el frenado frontal es inmediato
-                veh.a_prev = a
+            veh.a_prev = a
+            if self.b_physical and a < -self.b_physical:
+                a = -self.b_physical  # un vehículo real no frena más que esto
             advance(veh, a, dt)
             if veh.lc < 1.0:
                 veh.lc = min(1.0, veh.lc + dt / t_lc) if t_lc > 0 else 1.0

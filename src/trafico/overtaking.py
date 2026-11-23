@@ -39,6 +39,10 @@ class OvertakeParams:
     truck_block_headway: float = 3.0  # detrás de un camión a menos de esto (s) no se ve nada
     car_block_headway: float = 2.0  # detrás de un auto a menos de esto (s) se ve poco
     sight_behind_car: float = 500.0  # cuánto se ve detrás de un auto cercano, m
+    no_start_braking: bool = False  # no empezar si uno mismo o alguno a rebasar frena fuerte
+    return_closing: bool = False  # al volver, el hueco debe cubrir también la diferencia de velocidad
+    b_return: float = 3.0  # frenado firme supuesto al volver, m/s²
+    braking_threshold: float = -1.0  # m/s²: "frenar fuerte"
     window_back: float = 300.0  # no rebasar si otro del mismo sentido rebasa en esta zona, m
     window_front: float = 600.0
 
@@ -205,6 +209,15 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
         j -= 1
         if len(chain) > p.max_chain:
             return False
+    if p.t_lane_change > 0:
+        # Hay que poder salir sin alcanzar al de delante mientras dura el cambio de carril.
+        tl = p.t_lane_change
+        acerca = max(0.0, veh.v - leader.v) * tl + 0.5 * (veh.idm or road.idm).a_max * tl * tl
+        if leader.rear - veh.x < (veh.idm or road.idm).s0 + acerca:
+            return False
+    if p.no_start_braking and (veh.a_prev < p.braking_threshold
+                               or any(u.a_prev < p.braking_threshold for u in chain)):
+        return False  # el pelotón está frenando: no es momento de salir
     if not _is_safe(road, p, veh, chain):
         return False
     veh.change_lane(1 - veh.lane, p.t_lane_change)
@@ -242,9 +255,15 @@ def _try_return(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
         if u is veh:
             continue
         if u.x > veh.x:
-            ahead = min(ahead, u.rear - veh.x)
+            d = u.rear - veh.x
+            if p.return_closing and veh.v > u.v:  # lo que necesita para frenar hasta su velocidad
+                d -= (veh.v - u.v) ** 2 / (2.0 * p.b_return)
+            ahead = min(ahead, d)
         else:
-            behind = min(behind, veh.rear - u.x)
+            d = veh.rear - u.x
+            if p.return_closing and u.v > veh.v:  # el de atrás también tiene que poder frenar
+                d -= (u.v - veh.v) ** 2 / (2.0 * p.b_return)
+            behind = min(behind, d)
     m_front, m_back = p.m_front, p.m_back
     if p.t_lane_change > 0 and (ahead < m_front or behind < m_back):
         if amenaza is None:

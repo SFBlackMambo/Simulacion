@@ -53,6 +53,9 @@ def step(
     advance(vehicle, a, dt)
 
 
+B_FISICO = 9.0  # m/s²: lo máximo que frena un vehículo real
+
+
 def advance(vehicle: Vehicle, a: float, dt: float) -> None:
     """Integra el movimiento con aceleración `a` durante `dt` (balística)."""
     v_nueva = max(0.0, vehicle.v + a * dt)

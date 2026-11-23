@@ -52,6 +52,7 @@ class SimConfig:
     no_pass_from_sight: bool = False  # señalizar no rebase donde no hay visibilidad (curvas)
     drivers: DriverModel = field(default_factory=DriverModel)
     reaction_time: float = 0.0  # tiempo de reacción de los conductores, s (0 = inmediato)
+    b_physical: float = 0.0  # frenado máximo físico, m/s² (0 = sin tope)
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -163,7 +164,8 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
     ss = seq.spawn(2)  # llegadas de cada sentido (mismos hijos que antes)
     road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
                 geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks, drivers=cfg.drivers,
-                driver_seed=seq.spawn(1)[0], reaction_time=cfg.reaction_time)
+                driver_seed=seq.spawn(1)[0], reaction_time=cfg.reaction_time,
+                b_physical=cfg.b_physical)
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
             sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, trucks=cfg.trucks)
