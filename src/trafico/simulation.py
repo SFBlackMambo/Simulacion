@@ -26,6 +26,18 @@ class SimConfig:
     probe_spacing: float = 90.0  # entre sondas, s
     idm: IDMParams = field(default_factory=IDMParams)
     overtaking: OvertakeParams | None = field(default_factory=OvertakeParams)
+    # Cómo se genera el tráfico de fondo:
+    #   "flujo": llegadas de Poisson con `flow_per_hour` por sentido (sin fin).
+    #   "lleno": arranca con `n_vehicles` por sentido repartidos en la carretera; cada
+    #            uno que sale se repone, así que la cantidad se mantiene.
+    #   "total": entran exactamente `n_vehicles` por sentido (Poisson a `flow_per_hour`)
+    #            y la corrida termina cuando han salido todos.
+    mode: str = "flujo"
+    n_vehicles: int = 0
+    duration: float = 0.0  # la corrida dura al menos warmup + duration, s
+
+
+MODOS = ("flujo", "lleno", "total")
 
 
 @dataclass
@@ -56,6 +68,35 @@ class RunResult:
     recorder: Recorder | None = None
 
 
+def probe_times(cfg: SimConfig) -> list[float]:
+    """Instantes de entrada de las sondas."""
+    return [cfg.warmup + i * cfg.probe_spacing for i in range(cfg.n_probes)]
+
+
+def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> Road:
+    """Carretera con el tráfico de fondo de `cfg` (sin sondas), lista para avanzar.
+
+    Cada sentido tiene su propio generador (hijos de `seed`), así que el tráfico
+    de fondo depende solo de la semilla.
+    """
+    if cfg.mode not in MODOS:
+        raise ValueError(f"modo desconocido {cfg.mode!r}; opciones: {MODOS}")
+    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder)
+    ss = np.random.SeedSequence(seed).spawn(2)
+    for direction, s in zip((1, -1), ss):
+        if cfg.mode == "lleno":
+            sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s)
+            road.fill(direction, cfg.n_vehicles, sampler)
+            road.keep_count(direction, sampler)
+        else:
+            limit = cfg.n_vehicles if cfg.mode == "total" else None
+            road.add_source(
+                direction,
+                PoissonArrivals(cfg.flow_per_hour, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, max_count=limit),
+            )
+    return road
+
+
 def run_simulation(
     cfg: SimConfig, probe_v0_kmh: float, seed: int, recorder: Recorder | None = None
 ) -> RunResult:
@@ -65,22 +106,22 @@ def run_simulation(
     corridas con la misma semilla y distinta velocidad de sonda ven el mismo
     tráfico de fondo, y las sondas entran en los mismos instantes.
     """
-    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder)
-    seeds = np.random.SeedSequence(seed).spawn(2)
-    for direction, ss in zip((1, -1), seeds):
-        road.add_source(
-            direction,
-            PoissonArrivals(cfg.flow_per_hour, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=ss),
-        )
-
+    road = build_road(cfg, seed, recorder)
     probes = []
-    entry_times = [cfg.warmup + i * cfg.probe_spacing for i in range(cfg.n_probes)]
-    for t_inject in entry_times:
+    for t_inject in probe_times(cfg):
         road.run(t_inject - road.t)
         probes.append(road.inject(kmh_a_ms(probe_v0_kmh), direction=1, probe=True))
     max_time = cfg.length / kmh_a_ms(40) + 600.0
-    deadline = road.t + max_time
-    while any(p.t_exit is None for p in probes) and road.t < deadline:
+    deadline = max(road.t, cfg.warmup + cfg.duration) + max_time
+    if cfg.mode == "total" and cfg.flow_per_hour > 0:
+        deadline += 3 * 3600.0 * cfg.n_vehicles / cfg.flow_per_hour
+
+    def falta():
+        if any(p.t_exit is None for p in probes) or road.t < cfg.warmup + cfg.duration:
+            return True
+        return cfg.mode == "total" and not (road.sources_exhausted and not road.vehicles and not road.pending)
+
+    while falta() and road.t < deadline:
         road.run(10.0)
     if any(p.t_exit is None for p in probes):
         raise RuntimeError("alguna sonda no terminó el recorrido")

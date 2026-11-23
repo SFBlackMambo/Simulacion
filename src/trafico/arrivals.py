@@ -20,6 +20,7 @@ class PoissonArrivals:
         v0_min_kmh: float = 60.0,
         v0_max_kmh: float = 140.0,
         seed: int | np.random.SeedSequence = 0,
+        max_count: int | None = None,
     ) -> None:
         if rate_per_hour < 0:
             raise ValueError("rate_per_hour debe ser >= 0")
@@ -30,6 +31,8 @@ class PoissonArrivals:
         self.v0_std_kmh = v0_std_kmh
         self.v0_min_kmh = v0_min_kmh
         self.v0_max_kmh = v0_max_kmh
+        self.max_count = max_count  # None: sin límite
+        self.count = 0
         self._rng = np.random.default_rng(seed)
         self._next_t = self._gap()
 
@@ -37,6 +40,10 @@ class PoissonArrivals:
         if self.rate_per_hour == 0:
             return float("inf")
         return float(self._rng.exponential(3600.0 / self.rate_per_hour))
+
+    def sample_v0(self) -> float:
+        """Una velocidad deseada (m/s) de la distribución de esta fuente."""
+        return kmh_a_ms(self._v0_kmh())
 
     def _v0_kmh(self) -> float:
         while True:
@@ -47,7 +54,13 @@ class PoissonArrivals:
     def due(self, t: float) -> list[float]:
         """Velocidades deseadas (m/s) de las llegadas hasta el instante `t`."""
         out = []
-        while self._next_t <= t:
+        while self._next_t <= t and (self.max_count is None or self.count < self.max_count):
             out.append(kmh_a_ms(self._v0_kmh()))
+            self.count += 1
             self._next_t += self._gap()
         return out
+
+    @property
+    def exhausted(self) -> bool:
+        """True si ya generó todas sus llegadas (`max_count`)."""
+        return self.max_count is not None and self.count >= self.max_count

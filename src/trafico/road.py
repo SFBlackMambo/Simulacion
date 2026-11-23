@@ -46,6 +46,7 @@ class Road:
         self.collisions = 0
         self._pending: dict[int, deque[Vehicle]] = {1: deque(), -1: deque()}
         self._sources: dict[int, PoissonArrivals] = {}
+        self._replacers: dict[int, PoissonArrivals] = {}
         self._next_id = 0
 
     # ------------------------------------------------------------------
@@ -65,6 +66,37 @@ class Road:
     def add_source(self, direction: int, source: PoissonArrivals) -> None:
         """Conecta una fuente de llegadas a la entrada de un sentido."""
         self._sources[direction] = source
+
+    def keep_count(self, direction: int, sampler: PoissonArrivals) -> None:
+        """Cada vehículo de fondo que sale por este sentido se repone con uno nuevo.
+
+        Así el número de vehículos por sentido se mantiene (modo "carretera llena").
+        La velocidad deseada del nuevo se toma de `sampler`.
+        """
+        self._replacers[direction] = sampler
+
+    def fill(self, direction: int, n: int, sampler: PoissonArrivals) -> list[Vehicle]:
+        """Llena la carretera con `n` vehículos equiespaciados en un sentido.
+
+        La velocidad inicial es la deseada, limitada a la que permite el hueco
+        con el de delante (IDM en equilibrio), para que no haya frenazos al inicio.
+        Se marcan con `full_trip=False` porque no recorren la carretera completa.
+        """
+        if n <= 0:
+            return []
+        spacing = self.length / n
+        if spacing < 4.5 + self.idm.s0 + 0.5:
+            raise ValueError(f"{n} vehículos no caben en {self.length:g} m")
+        gap = spacing - 4.5
+        v_max = max(0.0, (gap - self.idm.s0) / self.idm.T)
+        out = []
+        for i in range(n):
+            v0 = sampler.sample_v0()
+            x = self.length - 1.0 - i * spacing  # el primero casi en la salida
+            veh = self.place(v0, x, v=min(v0, v_max), direction=direction)
+            veh.full_trip = False
+            out.append(veh)
+        return out
 
     def place(
         self,
@@ -219,9 +251,22 @@ class Road:
             if veh.x >= self.length:
                 veh.t_exit = self.t
                 self.finished.append(veh)
+                sampler = self._replacers.get(veh.direction)
+                if sampler is not None and not veh.probe:
+                    self.inject(sampler.sample_v0(), veh.direction)
             else:
                 keep.append(veh)
         self.vehicles = keep
+
+    @property
+    def pending(self) -> int:
+        """Vehículos esperando para entrar."""
+        return sum(len(q) for q in self._pending.values())
+
+    @property
+    def sources_exhausted(self) -> bool:
+        """True si ninguna fuente generará más llegadas."""
+        return all(s.exhausted for s in self._sources.values())
 
     def run(self, seconds: float) -> None:
         """Corre `seconds` segundos simulados."""

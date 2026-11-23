@@ -83,3 +83,10 @@
 - recorder.py: viajes de todos los vehículos (RunResult.trips), eventos de rebase (inicio/fin/aborto) y fotos periódicas; Recorder opcional.
 - Vehicle: veces_rebasado, alcances (episodios por debajo de v0, con histéresis), full_trip. Road.position() en coordenadas de la carretera.
 - Verificado: 58 tests; el registro no cambia los resultados; eventos cuadran con contadores.
+
+---
+
+## F010 - 2026-11-22
+- SimConfig.mode: "flujo" (Poisson, como antes), "lleno" (N por sentido repartidos al inicio y reposición al salir) y "total" (exactamente N por sentido, termina cuando salen todos). SimConfig.duration para corridas sin sondas.
+- simulation.build_road() separa la construcción de la carretera (la usará la animación). Road.fill / keep_count; PoissonArrivals.max_count / sample_v0.
+- Verificado: 65 tests; resultados del modo flujo sin cambios (mismas semillas).
