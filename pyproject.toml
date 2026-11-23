@@ -12,6 +12,10 @@ dependencies = ["numpy", "matplotlib"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
+anim = ["pygame-ce"]
+
+[project.scripts]
+trafico = "trafico.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -90,3 +90,10 @@
 - SimConfig.mode: "flujo" (Poisson, como antes), "lleno" (N por sentido repartidos al inicio y reposición al salir) y "total" (exactamente N por sentido, termina cuando salen todos). SimConfig.duration para corridas sin sondas.
 - simulation.build_road() separa la construcción de la carretera (la usará la animación). Road.fill / keep_count; PoissonArrivals.max_count / sample_v0.
 - Verificado: 65 tests; resultados del modo flujo sin cambios (mismas semillas).
+
+---
+
+## F011 - 2026-11-22
+- CLI `trafico corrida` (también `python -m trafico corrida`): una simulación con viajes.csv, eventos.csv, fotos.csv, config.json, resumen.json y 5 gráficas (espacio-tiempo, histograma de retraso, retraso vs v0, pelotones, rebases por km).
+- config.py: guardar/leer SimConfig en JSON y cambiar parámetros por nombre (`idm.T`, `overtaking.t_guard`, alias en español).
+- Verificado: 69 tests; gráficas revisadas visualmente (modos flujo y lleno). 20 km a 200 veh/h tarda ~3 s.

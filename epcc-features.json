@@ -370,12 +370,13 @@
       "subtasks": [
         {
           "name": "Corrida única",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:07:26-07:00"
     },
     {
       "id": "F012",
