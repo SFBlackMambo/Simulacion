@@ -51,6 +51,8 @@ class Vehicle:
     full_trip: bool = True  # False si empezó a mitad de la carretera (modo lleno)
     v_des: float = -1.0  # velocidad que busca ahora: v0, o menos en curva
     kind: str = "auto"  # "auto" o "camion"
+    lane_prev: int = -1  # carril que está dejando (durante un cambio de carril)
+    lc: float = 1.0  # avance del cambio de carril: 1 = terminado
     idm: object = None  # IDMParams propios (None: los de la carretera)
     targets: list = field(default_factory=list)
 
@@ -59,6 +61,21 @@ class Vehicle:
             self.lane = self.home_lane
         if self.v_des < 0:
             self.v_des = self.v0
+
+    def occupies(self, lane: int) -> bool:
+        """¿Ocupa este carril? Durante un cambio de carril ocupa los dos."""
+        return lane == self.lane or (self.lc < 1.0 and lane == self.lane_prev)
+
+    def change_lane(self, lane: int, duration: float) -> None:
+        """Empieza un cambio de carril (instantáneo si `duration` es 0)."""
+        if duration <= 0:
+            self.lane = lane
+            return
+        if self.lc < 1.0 and lane == self.lane_prev:
+            self.lc = 1.0 - self.lc  # vuelve atrás a mitad del cambio
+        else:
+            self.lc = 0.0
+        self.lane_prev, self.lane = self.lane, lane
 
     @property
     def home_lane(self) -> int:

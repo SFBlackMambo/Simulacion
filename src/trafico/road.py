@@ -152,7 +152,7 @@ class Road:
         """Velocidad de entrada, o None si no hay hueco suficiente."""
         last = None
         for u in self.vehicles:
-            if u.lane != veh.lane:
+            if not u.occupies(veh.lane):
                 continue
             if u.direction == veh.direction:
                 if last is None or u.x < last.x:
@@ -189,6 +189,8 @@ class Road:
         groups: dict[tuple[int, int], list[Vehicle]] = {}
         for veh in self.vehicles:
             groups.setdefault((veh.lane, veh.direction), []).append(veh)
+            if veh.lc < 1.0:  # cambiando de carril: ocupa también el que deja
+                groups.setdefault((veh.lane_prev, veh.direction), []).append(veh)
         for lst in groups.values():
             lst.sort(key=_POR_X, reverse=True)
         return groups
@@ -225,8 +227,13 @@ class Road:
                 cerca = leader is not None and leader.rear - veh.x < max(50.0, 4.0 * veh.v)
                 accels.append((veh, a, cerca))
                 leader = veh
+        if any(v.lc < 1.0 for v in self.vehicles):
+            accels = _fusionar(accels)
+        t_lc = self.overtaking.t_lane_change if self.overtaking is not None else 0.0
         for veh, a, cerca in accels:
             advance(veh, a, dt)
+            if veh.lc < 1.0:
+                veh.lc = min(1.0, veh.lc + dt / t_lc) if t_lc > 0 else 1.0
             if veh.v < veh.v_des - 1.0:
                 veh.t_slow += dt
                 if not veh.slowed and cerca:
@@ -296,3 +303,20 @@ class Road:
         """Corre `seconds` segundos simulados."""
         for _ in range(math.ceil(seconds / self.dt - 1e-9)):
             self.step()
+
+
+def _fusionar(accels):
+    """Un vehículo que cambia de carril aparece en dos grupos: se queda con la aceleración
+    más restrictiva (frena por lo que tenga delante en cualquiera de los dos carriles)."""
+    vistos: dict[int, int] = {}
+    out = []
+    for veh, a, cerca in accels:
+        k = id(veh)
+        if k in vistos:
+            i = vistos[k]
+            v0, a0, c0 = out[i]
+            out[i] = (v0, min(a0, a), c0 or cerca)
+        else:
+            vistos[k] = len(out)
+            out.append((veh, a, cerca))
+    return out

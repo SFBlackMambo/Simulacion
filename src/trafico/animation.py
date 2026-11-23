@@ -254,7 +254,9 @@ class Animacion:
             largo = max(xb - xa, largo_min * (2.4 if es_camion else 1.0))
             if v.direction == -1:
                 xa = xb - largo  # el frente queda a la izquierda
-            y = top + (carril * 0.5 if v.lane == 1 else carril * 1.5) - alto_coche / 2
+            yc = lambda ln: top + (carril * 0.5 if ln == 1 else carril * 1.5)  # noqa: E731
+            yv = yc(v.lane) if v.lc >= 1.0 else yc(v.lane_prev) + (yc(v.lane) - yc(v.lane_prev)) * v.lc
+            y = yv - alto_coche / 2
             rect = pg.Rect(xa, y, largo, alto_coche)
             pg.draw.rect(scr, color_de(v), rect, border_radius=3)
             if es_camion:  # cabina: franja oscura en el frente

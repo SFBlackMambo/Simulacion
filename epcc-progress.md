@@ -155,3 +155,10 @@
 - Sin camiones no se consume ningún número aleatorio extra: huella de regresión idéntica.
 - Hallazgo: con camiones a ~104 km/h y autos a 100 de media, casi nadie los rebasa en plano; su peso vendrá de las pendientes (F021).
 - Verificado: 116 tests; 0 colisiones y 0 emergencias con 10-50 % de camiones.
+
+---
+
+## F019 - 2026-11-22
+- Cambio de carril gradual: `overtaking.t_lane_change` (s, 0 = instantáneo). Durante el cambio el vehículo ocupa los dos carriles (aparece en ambos grupos; se aplica la aceleración más restrictiva); el cálculo de seguridad suma el regreso. Vehicle.change_lane / occupies / lc; la animación interpola la posición lateral.
+- Hallazgo: con 3 s, un rebase que esperaba hueco para volver provocaba sustos (frenado de emergencia del contrario). Solución: la amenaza se detecta t_lane_change antes y, si viene alguien de frente, se acepta volver en un hueco de la mitad.
+- Verificado: 120 tests; huella idéntica con duración 0; estrés 24 corridas con 3 s y 20 % camiones: 0 colisiones, 0 emergencias.

@@ -32,6 +32,7 @@ class OvertakeParams:
     d_threat: float = 30.0  # distancia frente a frente que hace abortar el rebase, m
     v_unseen: float = 30.0  # velocidad supuesta de un vehículo que no se ve (tras una curva), m/s
     t_guard_unseen: float = 2.0  # margen frente a ese vehículo supuesto, s
+    t_lane_change: float = 0.0  # duración de cada cambio de carril, s (0 = instantáneo)
     window_back: float = 300.0  # no rebasar si otro del mismo sentido rebasa en esta zona, m
     window_front: float = 600.0
 
@@ -97,7 +98,7 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         if t == inf:
             return False
         t_pass = max(t_pass, t)
-    T = t_pass + p.t_margin
+    T = t_pass + p.t_margin + p.t_lane_change  # hasta volver del todo al carril propio
     x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh) + p.d_margin
     T_guard = T + p.t_guard
     target = 1 - veh.lane
@@ -105,7 +106,7 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         if u is veh:
             continue
         if u.direction == veh.direction:
-            if u.lane == target and veh.x - p.window_back < u.x < veh.x + p.window_front:
+            if u.occupies(target) and veh.x - p.window_back < u.x < veh.x + p.window_front:
                 return False
         else:
             front = road.front_in_opposite_frame(u)
@@ -126,6 +127,8 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
 
 
 def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) -> bool:
+    if veh.lc < 1.0:
+        return False  # aún termina un cambio de carril
     leader = lst[i - 1]
     if leader.rear - veh.x > p.trigger_gap or leader.v + p.dv_min > veh.v_des:
         return False
@@ -139,7 +142,7 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
             return False
     if not _is_safe(road, p, veh, chain):
         return False
-    veh.lane = 1 - veh.lane
+    veh.change_lane(1 - veh.lane, p.t_lane_change)
     veh.state = REBASANDO
     veh.targets = chain
     road.event(REBASE_INICIO, veh, len(chain))
@@ -147,28 +150,41 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
 
 
 def _threat(road, p: OvertakeParams, veh: Vehicle) -> bool:
+    # con cambio de carril lento hay que reaccionar antes: volver también lleva tiempo
+    t = p.t_threat + p.t_lane_change
     for u in road.vehicles:
-        if u.direction != veh.direction and u.lane == veh.lane:
+        if u.direction != veh.direction and u.occupies(veh.lane):
             gap = road.front_in_opposite_frame(u) - veh.x
-            if gap > 0 and gap < (veh.v + u.v) * p.t_threat + p.d_threat:
+            if gap > 0 and gap < (veh.v + u.v) * t + p.d_threat:
                 return True
     return False
 
 
 def _try_return(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
+    amenaza = None  # se calcula solo si hace falta
     if veh.state == REBASANDO:
         if all(veh.rear >= t.x + p.m_back for t in veh.targets):
             veh.state = REGRESANDO
-        elif not _threat(road, p, veh):
-            return False
+        else:
+            amenaza = _threat(road, p, veh)
+            if not amenaza:
+                return False
     home = veh.home_lane
     ahead = behind = inf
     for u in groups.get((home, veh.direction), ()):
+        if u is veh:
+            continue
         if u.x > veh.x:
             ahead = min(ahead, u.rear - veh.x)
         else:
             behind = min(behind, veh.rear - u.x)
-    if ahead < p.m_front or behind < p.m_back:
+    m_front, m_back = p.m_front, p.m_back
+    if p.t_lane_change > 0 and (ahead < m_front or behind < m_back):
+        if amenaza is None:
+            amenaza = _threat(road, p, veh)
+        if amenaza:  # viene alguien de frente: se mete en un hueco más justo
+            m_front, m_back = 0.5 * m_front, 0.5 * m_back
+    if ahead < m_front or behind < m_back:
         return False
     if veh.state == REGRESANDO:
         veh.overtakes += len(veh.targets)
@@ -178,7 +194,7 @@ def _try_return(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
     else:
         veh.aborts += 1
         road.event(REBASE_ABORTO, veh, len(veh.targets))
-    veh.lane = home
+    veh.change_lane(home, p.t_lane_change)
     veh.state = SIGUIENDO
     veh.targets = []
     return True
@@ -189,8 +205,10 @@ def update(road, groups) -> bool:
     p = road.overtaking
     interval = max(1, round(p.decision_interval / road.dt))
     changed = False
-    for lst in list(groups.values()):
+    for (lane, _d), lst in list(groups.items()):
         for i, veh in enumerate(lst):
+            if veh.lane != lane:
+                continue  # está en este grupo solo porque cambia de carril
             if veh.state == SIGUIENDO:
                 if i > 0 and (road.n_steps + veh.id) % interval == 0:
                     changed |= _start(road, p, veh, lst, i)
