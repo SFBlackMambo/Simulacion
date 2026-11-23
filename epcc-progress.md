@@ -223,3 +223,12 @@
 - Resultado principal: la visión tapada es lo que más pesa (simple + solo visión tapada: 18 → 1 s de ganancia). En montaña con 10 % camiones el retraso medio pasa de 65 s a ~300 s.
 - Sustos residuales sin choque: 0.1 por corrida (0.7 en montaña).
 - Verificado: 165 tests; huella idéntica bit a bit con todo apagado.
+
+---
+
+## Calibración de pendientes y velocidad - 2026-11-22
+- El usuario notó que en subida los camiones bajaban demasiado rápido. Era un error: la velocidad mínima de subida se usaba como velocidad deseada y el vehículo "frenaba" (105 → 39 km/h en 4 s). Ahora en subida solo limita el motor (pérdida gradual).
+- Investigación (NCHRP 505, FHWA-RD-99-171/TWOPAS, SCT Manual de Proyecto Geométrico 2018, Bester y Oncke 2013, GSRS): potencia por camión sorteada (log-normal, mediana 150 lb/hp, 87 % a la rueda) + 15 % de fulles 330-410 lb/hp; arrastre del aire; autos 22 W/kg; bajadas con gravedad (autos +10 %, camiones +5 % SCT); freno de motor solo con >4 % y >2 km (St John, V = 0.9/G) para camiones pesados; montañoso 3-6 % (a veces 7 %) en tramos de 300-800 m. Física de motor también para camiones en llano (un full no sostiene 100 km/h).
+- Correcciones de seguridad: la predicción del rebase de un camión usa su física de motor; un camión solo rebasa si lo que puede sostener supera al de delante.
+- Velocidad: tablas por vehículo, descarte temprano por tráfico de frente (cota segura) y `--rapido` con PyPy (scripts/instalar_pypy.sh). Mismos resultados bit a bit (huellas simple y realista). 20 km realista en montaña: 56.6 s → 20 s (CPython) → 5 s (PyPy).
+- Campañas de la fase 3 recalculadas: 0 colisiones; montaña con 10 % camiones: retraso medio 178 s (antes 298 con el error).

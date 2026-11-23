@@ -96,7 +96,7 @@ Todo esto viene **apagado por defecto** (así los resultados de las fases 1 y 2 
 | Qué | Cómo se activa | Qué hace |
 |---|---|---|
 | Camiones | `--camiones 0.15` | 16.5 m, aceleran 0.5 m/s². Velocidad deseada con moda en 105 km/h (96 % entre 90 y 110) y 2 % de casos raros: muy lentos (60-90) o con exceso (110-125). |
-| Pendientes | `--relieve lomerio` / `montanoso`, o `--param "pendientes=1000:3000:6;..."` (%) | En subida, por potencia: un camión va a ~69 km/h en 3 %, ~39 en 6 % y ~31 en 8 %. En bajada, freno de motor: 78 km/h en 5 %, 66 en 7 % y 54 en 9 %. Los autos casi no lo notan. |
+| Pendientes | `--relieve lomerio` / `montanoso`, o `--param "pendientes=1000:3000:6;..."` (%) | Física con potencia del motor y aire, calibrada con datos (ver abajo). En subida se pierde velocidad poco a poco; en bajada la gravedad empuja y se gana velocidad (autos hasta +10 %, camiones +5 %); los camiones muy cargados usan freno de motor solo en bajadas fuertes (>4 %) y largas (>2 km). |
 | Cambio de carril gradual | `--param overtaking.t_lane_change=3` | Cambiar de carril tarda 3 s y mientras tanto ocupa los dos carriles. |
 | Rebase en cadena | `--param overtaking.convoy=1` | Se puede seguir a otro que ya rebasa, si el rebase propio es seguro. |
 | Visión tapada | `--param overtaking.blocked_view=1` | Detrás de un camión a menos de 3 s no se ve el carril contrario; detrás de un auto a menos de 2 s se ven 500 m. |
@@ -110,6 +110,10 @@ En la animación los camiones se ven más largos y con cabina, el cambio de carr
 arriba, rótulos de "sube/baja x %" y señales circulares de límite de velocidad.
 
 ### Campañas
+
+**Más rápido con PyPy**: `bash scripts/instalar_pypy.sh` (una vez) y añade `--rapido` a `trafico campana`. La
+simulación corre con PyPy y las gráficas con el Python normal. Da exactamente los mismos resultados y es de 5 a
+11 veces más rápido (20 km realista en montaña: 57 s → 5 s por corrida).
 
 ```bash
 trafico campana --barrer trazado=recta,pocas,muchas --barrer flujo=100,200,300 \
@@ -139,8 +143,8 @@ distintos con impaciencia y 1 s de reacción. En las 352 corridas de estas campa
 | Variante | Ganancia |
 |---|---:|
 | Modelo simple | 18.0 ± 5.4 s |
-| Modelo realista | 6.2 ± 6.0 s |
-| Realista **sin visión tapada** | 16.7 ± 4.4 s |
+| Modelo realista | 8.1 ± 5.0 s |
+| Realista **sin visión tapada** | 17.0 ± 2.6 s |
 | Simple **+ solo visión tapada** | 1.1 ± 4.6 s |
 | Simple + solo cambio de carril de 3 s | 12.0 ± 4.6 s |
 | Simple + solo camiones / conductores / reacción / cadena | 17 a 23 s (sin diferencia clara) |
@@ -155,38 +159,42 @@ Tabla completa en `docs/descomposicion_realista.csv` (`python scripts/descompone
 
 ### Camiones y pendientes (modelo realista, 200 veh/h)
 
-| Camiones | Retraso medio, plano | Lomerío | Montañoso |
+Retraso medio de cada vehículo en 20 km:
+
+| Camiones | Plano | Lomerío | Montañoso |
 |---:|---:|---:|---:|
-| 0 % | 66 s | 65 s | 65 s |
-| 10 % | 68 s | 96 s | **298 s** |
-| 25 % | 71 s | 111 s | **329 s** |
+| 0 % | 66 s | 68 s | 66 s |
+| 10 % | 69 s | 96 s | **178 s** |
+| 25 % | 77 s | 126 s | **251 s** |
 
 ![Retraso por camiones y relieve](docs/f3_retraso_camiones_relieve.png)
 
-- **En plano los camiones casi no estorban**: van a ~104 km/h, más rápido que el auto promedio.
-- **En pendiente lo cambian todo**: en montaña con solo 10 % de camiones, cada vehículo pierde en promedio
-  5 minutos en 20 km, porque los camiones suben a 30-70 km/h según la pendiente y se forman pelotones largos
-  detrás de ellos, que además casi no pueden rebasar con tráfico de frente.
-- Sin camiones, el relieve no cambia nada: a los autos las pendientes casi no les afectan.
-- La ganancia de ir a 130 en vez de 120 sigue siendo pequeña (de 1 a 11 s en 20 km, con intervalos de ±3 a
-  ±10 s): estar atrapado detrás de un camión en subida cuesta lo mismo vayas a la velocidad que vayas.
+- **En plano los camiones casi no estorban**: el típico va a ~104 km/h, más rápido que el auto promedio.
+- **En pendiente sí**: en montaña con 10 % de camiones, cada vehículo pierde en promedio 3 minutos en 20 km.
+  En las subidas los camiones pesados se quedan atrás y se forman pelotones que, con tráfico de frente y
+  visibilidad limitada, casi no pueden rebasar. En las bajadas recuperan velocidad.
+- Sin camiones, el relieve casi no cambia nada: los autos apenas lo notan.
+- La ganancia de ir a 130 en vez de 120 sigue siendo pequeña (de −3 a 10 s en 20 km, con intervalos de ±2 a
+  ±9 s): estar atrás de un camión en subida cuesta casi lo mismo vayas a la velocidad que vayas. Con relieve,
+  además, la ganancia ideal baja de 46 a ~34 s porque en las subidas fuertes un auto no sostiene 130.
 
 ### Rebase en cadena (modelo realista, recta)
 
 | Flujo | Uno a uno | En cadena |
 |---:|---:|---:|
-| 200 veh/h | 4.7 ± 5.8 s | 6.2 ± 6.0 s |
-| 350 veh/h | 1.9 ± 1.5 s | 3.1 ± 2.2 s |
+| 200 veh/h | 6.0 ± 5.1 s | 8.1 ± 5.0 s |
+| 350 veh/h | 1.9 ± 1.5 s | 2.8 ± 2.3 s |
 
 Dejar que se vayan varios a la vez ayuda un poco, pero la diferencia no es concluyente. Con visión tapada, el
-segundo de la fila pocas veces ve lo suficiente para seguir al primero: el 8.5 % de los rebases fueron en cadena
+segundo de la fila pocas veces ve lo suficiente para seguir al primero: el 8 % de los rebases fueron en cadena
 a 200 veh/h y el 19 % a 350 veh/h (con más tráfico hay más filas largas esperando el mismo hueco).
 
 ### Sustos
 
-En el modelo realista aparecen algunos frenados de emergencia sin choque: 0.1 por corrida en promedio, 0.06 en
-plano, 0.4 en lomerío y 0.7 en montaña. Casi siempre es alguien que termina un rebase largo y, al volver a su
-carril, el que viene de frente tiene que frenar: casos realistas de "se metió justo". En el modelo simple no hay.
+En el modelo realista aparecen algunos frenados de emergencia sin choque: de 0.2 a 0.5 por corrida en promedio
+(0.15 en plano, 0.5 en lomerío, 0.8 en montaña; 0 con muchas curvas, porque casi no se rebasa). Casi siempre es
+alguien que termina un rebase largo y, al volver a su carril, el que viene de frente tiene que frenar: casos
+realistas de "se metió justo". En el modelo simple no hay.
 
 ## Resultados fase 2: tipo de carretera y distancia
 
@@ -293,6 +301,19 @@ La dispersión de velocidades, el umbral para rebasar y la aceleración son los 
 - **Visibilidad**: dentro de una curva se ve √(8·R·m) metros del carril contrario, con un despeje lateral
   m = 10 m (R = 300 m → 155 m). Para rebasar, el conductor supone que justo donde se le acaba la visibilidad
   viene un coche de frente a 108 km/h; si la maniobra no cabe, no rebasa. En recta no cambia nada.
+- **Pendientes** (solo con relieve, y siempre para camiones): la aceleración no puede pasar de lo que da el
+  motor, P/v − g·(i + 0.01) − k·v², con P la potencia en la rueda y k el arrastre del aire. Cada camión sortea su
+  relación peso/potencia: mediana 150 lb/hp (unos 9 W/kg en la rueda), calibrada con NCHRP 505 (carreteras de
+  dos carriles), más un 15 % de "fulles" muy cargados (330-410 lb/hp, como el vehículo de proyecto de la SCT:
+  75.5 t y 430 hp). Así, en una subida de 6 % un camión típico baja poco a poco hasta ~46 km/h (uno ligero
+  ~67, un full ~23), y en 500 m de subida todavía va arriba de 70 km/h. Los autos (22 W/kg) casi no lo notan
+  hasta 4 %. En bajada, la gravedad empuja y el conductor se deja llevar hasta +10 % (autos) o +5 % (camiones,
+  dato de la SCT) de su velocidad deseada, así que se llega "con vuelo" a la siguiente subida. Los camiones muy
+  cargados usan freno de motor en bajadas de más de 4 % y más de 2 km: V = 0.9/G m/s (regla de St John:
+  65 km/h en 5 %, 46 en 7 %).
+  Fuentes: NCHRP Report 505 (TRB, 2003); FHWA-RD-99-171 (TWOPAS); SCT, *Manual de Proyecto Geométrico de
+  Carreteras* (2018); Bester y Oncke (2013). El preset montañoso usa tramos de 3 a 6 % (a veces 7 %) de 300 a
+  800 m, dentro de las pendientes máximas de la SCT para terreno montañoso.
 - **Experimento**: vehículos *sonda* con velocidad deseada fija entran a intervalos regulares tras un periodo de
   calentamiento. Se usan **números aleatorios comunes**: la misma semilla da el mismo tráfico de fondo (y la
   misma carretera) y las mismas horas de entrada, y solo cambia la velocidad de la sonda. Así la diferencia
@@ -338,7 +359,7 @@ trafico campana --barrer longitud=5000,10000,20000,40000 --barrer flujo=100,200,
     --velocidades 120 130 --semillas 8 --sondas 20 --nucleos 15 --salida results/distancia
 ```
 
-Las campañas de la fase 2 tardan unos 12 minutos con 15 núcleos. Todo se guarda en `results/` (ignorada por git).
+Las campañas de la fase 2 tardan unos 12 minutos con 15 núcleos (unas 5 veces menos con `--rapido`). Todo se guarda en `results/` (ignorada por git).
 
 ```bash
 # Fase 3: modelo realista
