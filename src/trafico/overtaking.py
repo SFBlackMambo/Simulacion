@@ -151,7 +151,13 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         if veh.x - p.window_back < u.x < veh.x + p.window_front:
             if not p.convoy or u.x <= veh.x or u.state == SIGUIENDO:
                 return False  # uno detrás, o uno que vuelve: no se arriesga
-            delante.append(u)  # va rebasando delante: se le puede seguir
+            # va rebasando delante: se le puede seguir, pero a distancia segura
+            p_idm = veh.idm or road.idm
+            hueco = u.rear - veh.x
+            frenar = max(0.0, veh.v - u.v) ** 2 / (2.0 * p_idm.b)
+            if hueco < p_idm.s0 + 0.5 * p_idm.T * veh.v + frenar:
+                return False
+            delante.append(u)
     veh.convoy_start = bool(delante)
     # Descarte rápido (mismo resultado, sin las cuentas caras): si no ve lo suficiente ni para
     # el rebase más corto posible, no hay nada que calcular.

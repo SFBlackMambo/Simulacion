@@ -127,6 +127,67 @@ trafico graficar results/curvas --x flujo --serie trazado --comparar 120 130
   con `--viajes`, `viajes.csv` (cada vehículo de cada corrida).
 - `graficar` genera tablas con media ± IC 95 % y gráficas sin volver a simular.
 
+## Resultados fase 3: modelo realista (20 km, 8 réplicas)
+
+Con `--realista` se suman camiones, cambio de carril de 3 s, rebase en cadena, visión tapada, conductores
+distintos con impaciencia y 1 s de reacción. En las 352 corridas de estas campañas hubo **0 colisiones**.
+
+### ¿Qué pieza pesa más? (recta, 200 veh/h, ganancia 120 → 130 km/h)
+
+![Descomposición](docs/descomposicion_realista.png)
+
+| Variante | Ganancia |
+|---|---:|
+| Modelo simple | 18.0 ± 5.4 s |
+| Modelo realista | 6.2 ± 6.0 s |
+| Realista **sin visión tapada** | 16.7 ± 4.4 s |
+| Simple **+ solo visión tapada** | 1.1 ± 4.6 s |
+| Simple + solo cambio de carril de 3 s | 12.0 ± 4.6 s |
+| Simple + solo camiones / conductores / reacción / cadena | 17 a 23 s (sin diferencia clara) |
+
+**La visión tapada es la que manda.** Si quien va pegado a otro vehículo no ve lo suficiente del carril
+contrario, casi nunca encuentra cuándo rebasar, y la ventaja de ir más rápido desaparece. El cambio de carril
+lento le quita una parte (los rebases necesitan más espacio). Las demás piezas mueven el resultado menos que el
+margen de error. **Ojo:** la visión tapada usa supuestos sin calibrar (detrás de un camión a menos de 3 s no se
+ve nada; detrás de un auto a menos de 2 s se ven 500 m), y en la realidad los conductores se abren un poco para
+asomarse. Es el parámetro que más conviene medir con datos reales.
+Tabla completa en `docs/descomposicion_realista.csv` (`python scripts/descomponer_realista.py`).
+
+### Camiones y pendientes (modelo realista, 200 veh/h)
+
+| Camiones | Retraso medio, plano | Lomerío | Montañoso |
+|---:|---:|---:|---:|
+| 0 % | 66 s | 65 s | 65 s |
+| 10 % | 68 s | 96 s | **298 s** |
+| 25 % | 71 s | 111 s | **329 s** |
+
+![Retraso por camiones y relieve](docs/f3_retraso_camiones_relieve.png)
+
+- **En plano los camiones casi no estorban**: van a ~104 km/h, más rápido que el auto promedio.
+- **En pendiente lo cambian todo**: en montaña con solo 10 % de camiones, cada vehículo pierde en promedio
+  5 minutos en 20 km, porque los camiones suben a 30-70 km/h según la pendiente y se forman pelotones largos
+  detrás de ellos, que además casi no pueden rebasar con tráfico de frente.
+- Sin camiones, el relieve no cambia nada: a los autos las pendientes casi no les afectan.
+- La ganancia de ir a 130 en vez de 120 sigue siendo pequeña (de 1 a 11 s en 20 km, con intervalos de ±3 a
+  ±10 s): estar atrapado detrás de un camión en subida cuesta lo mismo vayas a la velocidad que vayas.
+
+### Rebase en cadena (modelo realista, recta)
+
+| Flujo | Uno a uno | En cadena |
+|---:|---:|---:|
+| 200 veh/h | 4.7 ± 5.8 s | 6.2 ± 6.0 s |
+| 350 veh/h | 1.9 ± 1.5 s | 3.1 ± 2.2 s |
+
+Dejar que se vayan varios a la vez ayuda un poco, pero la diferencia no es concluyente. Con visión tapada, el
+segundo de la fila pocas veces ve lo suficiente para seguir al primero: el 8.5 % de los rebases fueron en cadena
+a 200 veh/h y el 19 % a 350 veh/h (con más tráfico hay más filas largas esperando el mismo hueco).
+
+### Sustos
+
+En el modelo realista aparecen algunos frenados de emergencia sin choque: 0.1 por corrida en promedio, 0.06 en
+plano, 0.4 en lomerío y 0.7 en montaña. Casi siempre es alguien que termina un rebase largo y, al volver a su
+carril, el que viene de frente tiene que frenar: casos realistas de "se metió justo". En el modelo simple no hay.
+
 ## Resultados fase 2: tipo de carretera y distancia
 
 ### ¿Y si la carretera tiene curvas? (20 km, 8 réplicas, cada una con un trazado distinto)

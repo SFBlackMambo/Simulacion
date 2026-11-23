@@ -770,12 +770,13 @@
       "subtasks": [
         {
           "name": "Campañas y README fase 3",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T21:31:10-07:00"
     }
   ],
   "_phase2ApprovedAt": "2026-11-22",

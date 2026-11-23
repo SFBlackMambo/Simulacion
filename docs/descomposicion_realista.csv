@@ -1,0 +1,15 @@
+variante,ganancia_s,ic95_s,rebases_por_vehiculo,colisiones
+simple,17.99,5.4,0.561,0
+realista,6.25,5.97,0.2,0
+realista sin camiones,2.31,5.35,0.231,0
+realista sin cambio de carril 3 s,4.64,8.18,0.227,0
+realista sin visión tapada,16.72,4.41,0.493,0
+realista sin rebase en cadena,4.65,5.85,0.193,0
+realista sin conductores e impaciencia,3.75,6.46,0.194,0
+realista sin reacción 1 s,-0.9,5.41,0.288,0
+simple + camiones,17.91,7.42,0.54,0
+simple + cambio de carril 3 s,12.03,4.62,0.467,0
+simple + visión tapada,1.07,4.61,0.356,0
+simple + rebase en cadena,22.61,8.6,0.605,0
+simple + conductores e impaciencia,19.85,5.22,0.592,0
+simple + reacción 1 s,16.61,3.21,0.581,0

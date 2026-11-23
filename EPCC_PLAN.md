@@ -140,7 +140,7 @@ scripts/      run_experiment.py (gráficas)
 
 # Plan fase 3: comportamiento más realista
 
-**Creado**: 2026-11-22 | **Esfuerzo**: ~31h | **Estado**: APROBADO (2026-11-22)
+**Creado**: 2026-11-22 | **Esfuerzo**: ~31h | **Estado**: COMPLETADO (2026-11-22)
 
 ## 1. Objetivo
 Añadir camiones, cambio de carril gradual, rebase en cadena con visión tapada, pendientes, límites de velocidad y zonas de no rebase señalizadas, tipos de conductor con impaciencia y tiempo de reacción.

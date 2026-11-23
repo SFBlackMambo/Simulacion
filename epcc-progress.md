@@ -211,3 +211,15 @@
 - Animación: perfil de alturas con la ventana visible, rótulos "sube/baja x %", señales circulares de límite, camiones largos con cabina, cambio de carril visible, lista del modelo activo en la columna de la leyenda.
 - Menú: relieve, % de camiones y modelo realista; se pueden barrer relieve y camiones.
 - Verificado: 160 tests; capturas revisadas.
+
+---
+
+## F026 - 2026-11-22
+- Campañas realistas (352 corridas, 0 colisiones): camiones × relieve, flujo × trazado, cadena sí/no. scripts/descomponer_realista.py: quita/añade cada pieza del preset.
+- Hallazgos que obligaron a corregir el modelo antes de publicar:
+  1. Sustos en montaña con camiones: se salía a rebasar a un pelotón que frenaba en seco y, durante el cambio de carril de 3 s, se frenaba con él (42 → 6 km/h). Nuevo (solo realista): no salir si uno o el pelotón frena fuerte; durante la salida el líder del carril propio solo cuenta si está muy cerca; solo salir si cabe la salida sin alcanzar al de delante.
+  2. El IDM llegaba a pedir -2000 m/s² al reaparecer el líder. Tope físico de frenado 9 m/s² (solo realista; en el simple nunca se pasaba de 9 y la huella no cambia). Con el tope aparecieron choques al volver de un rebase detrás de un camión lento; el regreso ahora exige cubrir la distancia de frenado por la diferencia de velocidad (solo realista).
+  3. Cadena sin visión tapada chocaba: el que se sumaba no revisaba la distancia con el que rebasaba delante. Ahora debe ir a distancia segura. (Con visión tapada la regla nunca se activaba: campaña de cadena idéntica bit a bit.)
+- Resultado principal: la visión tapada es lo que más pesa (simple + solo visión tapada: 18 → 1 s de ganancia). En montaña con 10 % camiones el retraso medio pasa de 65 s a ~300 s.
+- Sustos residuales sin choque: 0.1 por corrida (0.7 en montaña).
+- Verificado: 165 tests; huella idéntica bit a bit con todo apagado.
