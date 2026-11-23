@@ -250,12 +250,17 @@ class Animacion:
             xa, xb = sorted((X(frente), X(atras)))
             if xb < 40 or xa > w - 40:
                 continue
-            largo = max(xb - xa, largo_min)
+            es_camion = v.kind == "camion"
+            largo = max(xb - xa, largo_min * (2.4 if es_camion else 1.0))
             if v.direction == -1:
                 xa = xb - largo  # el frente queda a la izquierda
             y = top + (carril * 0.5 if v.lane == 1 else carril * 1.5) - alto_coche / 2
             rect = pg.Rect(xa, y, largo, alto_coche)
             pg.draw.rect(scr, color_de(v), rect, border_radius=3)
+            if es_camion:  # cabina: franja oscura en el frente
+                cab = largo * 0.22
+                cx = xa + largo - cab if v.direction == 1 else xa
+                pg.draw.rect(scr, FONDO, (cx + (2 if v.direction == 1 else 0), y, 2, alto_coche))
             if v.probe:
                 pg.draw.rect(scr, TEXTO, rect.inflate(6, 6), 2, border_radius=5)
                 ety = y + alto_coche + 5 if v.lane == 0 else y - 22  # hacia el borde, no sobre la línea

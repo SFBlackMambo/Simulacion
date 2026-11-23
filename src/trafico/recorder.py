@@ -18,10 +18,10 @@ REBASE_ABORTO = "rebase_aborto"
 CAMPOS_VIAJE = [
     "id", "sentido", "v0_kmh", "sonda", "viaje_completo", "t_entrada", "t_salida",
     "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "abortos", "veces_rebasado",
-    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia",
+    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n"]
-CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh"]
+CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh", "clase"]
 
 
 def viaje(veh: Vehicle, free_time: float) -> dict:
@@ -45,6 +45,7 @@ def viaje(veh: Vehicle, free_time: float) -> dict:
         "t_lento": round(veh.t_slow, 2),
         "t_espera_entrada": round(veh.t_wait_entry, 2),
         "frenado_emergencia": int(veh.emergency_steps > 0),
+        "clase": veh.kind,
     }
 
 
@@ -75,7 +76,7 @@ class Recorder:
         for v in road.vehicles:
             self.snapshots.append((
                 t, v.id, v.direction, round(road.position(v), 1), round(ms_a_kmh(v.v), 2),
-                round(ms_a_kmh(v.v0), 2), v.lane, int(v.probe), v.state, round(ms_a_kmh(v.v_des), 2),
+                round(ms_a_kmh(v.v0), 2), v.lane, int(v.probe), v.state, round(ms_a_kmh(v.v_des), 2), v.kind,
             ))
         self._next_snapshot += self.snapshot_interval
 

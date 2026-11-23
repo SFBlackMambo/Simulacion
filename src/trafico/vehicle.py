@@ -50,6 +50,8 @@ class Vehicle:
     slowed: bool = False  # va ahora por debajo de v0 (con histéresis)
     full_trip: bool = True  # False si empezó a mitad de la carretera (modo lleno)
     v_des: float = -1.0  # velocidad que busca ahora: v0, o menos en curva
+    kind: str = "auto"  # "auto" o "camion"
+    idm: object = None  # IDMParams propios (None: los de la carretera)
     targets: list = field(default_factory=list)
 
     def __post_init__(self) -> None:

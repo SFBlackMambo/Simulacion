@@ -147,3 +147,11 @@
 
 ## Fase 3 planeada - 2026-11-22
 - Plan fase 3 aprobado (F018-F026): camiones, cambio de carril gradual, rebase en cadena, pendientes, señales, conductores, reacción. Todo apagado por defecto; preset --realista.
+
+---
+
+## F018 - 2026-11-22
+- fleet.py: TruckParams (16.5 m, a = 0.5 m/s², velocidad normal asimétrica con moda ~105 km/h y 2 % de anomalías). SimConfig.trucks; `--param camiones=0.2` (alias de trucks.share). Cada vehículo tiene `kind` e `idm` propios; los viajes y fotos guardan la clase.
+- Sin camiones no se consume ningún número aleatorio extra: huella de regresión idéntica.
+- Hallazgo: con camiones a ~104 km/h y autos a 100 de media, casi nadie los rebasa en plano; su peso vendrá de las pendientes (F021).
+- Verificado: 116 tests; 0 colisiones y 0 emergencias con 10-50 % de camiones.

@@ -6,6 +6,7 @@ from operator import attrgetter
 
 from .arrivals import PoissonArrivals
 from . import overtaking
+from .fleet import AUTO, CAMION, LARGO_AUTO, TruckParams
 from .geometry import curve_accel
 from .idm import IDMParams, advance, idm_acceleration
 from .overtaking import OvertakeParams
@@ -32,6 +33,7 @@ class Road:
         overtaking: OvertakeParams | None = None,
         recorder=None,
         geometry=None,
+        trucks=None,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -42,6 +44,7 @@ class Road:
         self.overtaking = overtaking  # None: nadie rebasa
         self.recorder = recorder  # Recorder opcional (solo lee el estado)
         self.geometry = geometry if geometry is not None and not geometry.straight else None
+        self.trucks = trucks  # TruckParams: tamaño y dinámica de los camiones
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -55,14 +58,18 @@ class Road:
     # ------------------------------------------------------------------
     # Creación de vehículos
     # ------------------------------------------------------------------
-    def _nuevo(self, v0: float, direction: int, probe: bool, **kw) -> Vehicle:
-        veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, **kw)
+    def _nuevo(self, v0: float, direction: int, probe: bool, kind: str = AUTO, **kw) -> Vehicle:
+        if kind == CAMION:
+            t = self.trucks or TruckParams()
+            kw.setdefault("length", t.length)
+            kw["idm"] = t.idm
+        veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, kind=kind, **kw)
         self._next_id += 1
         return veh
 
-    def inject(self, v0: float, direction: int = 1, probe: bool = False) -> Vehicle:
+    def inject(self, v0: float, direction: int = 1, probe: bool = False, kind: str = AUTO) -> Vehicle:
         """Pone un vehículo en la cola de entrada de su sentido."""
-        veh = self._nuevo(v0, direction, probe)
+        veh = self._nuevo(v0, direction, probe, kind)
         self._pending[direction].append(veh)
         return veh
 
@@ -88,15 +95,16 @@ class Road:
         if n <= 0:
             return []
         spacing = self.length / n
-        if spacing < 4.5 + self.idm.s0 + 0.5:
+        largo = LARGO_AUTO if sampler.trucks is None else max(LARGO_AUTO, sampler.trucks.length)
+        if spacing < largo + self.idm.s0 + 0.5:
             raise ValueError(f"{n} vehículos no caben en {self.length:g} m")
-        gap = spacing - 4.5
+        gap = spacing - largo
         v_max = max(0.0, (gap - self.idm.s0) / self.idm.T)
         out = []
         for i in range(n):
-            v0 = sampler.sample_v0()
+            v0, kind = sampler.sample()
             x = self.length - 1.0 - i * spacing  # el primero casi en la salida
-            veh = self.place(v0, x, v=min(v0, v_max), direction=direction)
+            veh = self.place(v0, x, v=min(v0, v_max), direction=direction, kind=kind)
             veh.full_trip = False
             out.append(veh)
         return out
@@ -109,10 +117,12 @@ class Road:
         direction: int = 1,
         lane: int | None = None,
         probe: bool = False,
-        length: float = 4.5,
+        length: float | None = None,
+        kind: str = AUTO,
     ) -> Vehicle:
         """Coloca un vehículo directamente en la carretera (escenarios y tests)."""
-        veh = self._nuevo(v0, direction, probe, x=x, v=v0 if v is None else v, length=length)
+        kw = {} if length is None else {"length": length}
+        veh = self._nuevo(v0, direction, probe, kind, x=x, v=v0 if v is None else v, **kw)
         if lane is not None:
             veh.lane = lane
         veh.t_entry = self.t
@@ -186,8 +196,8 @@ class Road:
     def step(self) -> None:
         """Avanza la simulación un paso `dt`."""
         for direction, source in self._sources.items():
-            for v0 in source.due(self.t):
-                self.inject(v0, direction)
+            for v0, kind in source.due_vehicles(self.t):
+                self.inject(v0, direction, kind=kind)
         self._try_enter()
         groups = self._groups()
         if self.overtaking is not None and overtaking.update(self, groups):
@@ -202,10 +212,11 @@ class Road:
                 if geo is not None:
                     v0 = min(v0, geo.limit(direction, veh.x))
                     veh.v_des = v0
+                p_idm = veh.idm or idm
                 if leader is None:
-                    a = idm_acceleration(veh.v, v0, None, None, idm)
+                    a = idm_acceleration(veh.v, v0, None, None, p_idm)
                 else:
-                    a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, idm)
+                    a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, p_idm)
                 if geo is not None:
                     a = curve_accel(a, veh.v, v0)
                 if opposite:
@@ -265,7 +276,8 @@ class Road:
                 self.finished.append(veh)
                 sampler = self._replacers.get(veh.direction)
                 if sampler is not None and not veh.probe:
-                    self.inject(sampler.sample_v0(), veh.direction)
+                    v0, kind = sampler.sample()
+                    self.inject(v0, veh.direction, kind=kind)
             else:
                 keep.append(veh)
         self.vehicles = keep

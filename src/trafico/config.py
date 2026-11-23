@@ -8,11 +8,12 @@ import dataclasses
 import json
 from pathlib import Path
 
+from .fleet import TruckParams
 from .idm import IDMParams
 from .overtaking import OvertakeParams
 from .simulation import SimConfig
 
-_ANIDADOS = {"idm": IDMParams, "overtaking": OvertakeParams}
+_ANIDADOS = {"idm": IDMParams, "overtaking": OvertakeParams, "trucks": TruckParams}
 
 # Nombres cortos en español para la línea de comandos y el menú
 ALIAS = {
@@ -30,6 +31,7 @@ ALIAS = {
     "semilla_trazado": "geometry_seed",
     "a_lateral": "curve_a_lat",
     "despeje": "sight_clearance",
+    "camiones": "trucks.share",
 }
 
 
@@ -45,7 +47,10 @@ def from_dict(d: dict) -> SimConfig:
     kw = dict(d)
     for key, cls in _ANIDADOS.items():
         if key in kw and isinstance(kw[key], dict):
-            kw[key] = cls(**kw[key])
+            sub = dict(kw[key])
+            if isinstance(sub.get("idm"), dict):  # p. ej. trucks.idm
+                sub["idm"] = IDMParams(**sub["idm"])
+            kw[key] = cls(**sub)
     if "curves" in kw:
         kw["curves"] = tuple(tuple(c) for c in kw["curves"])
     return SimConfig(**kw)

@@ -42,7 +42,7 @@ def _sombrear_curvas(ax, geo, eje: str = "y", escala: float = 1000.0) -> None:
 def plot_space_time(snapshots, path, length: float, v_max_perdida: float = 40.0, geo=None) -> None:
     """Diagrama espacio-tiempo: una línea por vehículo, color = velocidad perdida (v0 - v)."""
     tray: dict[int, list] = {}
-    for t, vid, sentido, x, v, _v0, _c, sonda, _e, v_perm in snapshots:
+    for t, vid, sentido, x, v, _v0, _c, sonda, _e, v_perm, *_ in snapshots:
         tray.setdefault(vid, []).append((t / 60.0, x / 1000.0, max(0.0, v_perm - v), sonda, sentido))
     fig, axes = plt.subplots(2, 1, figsize=(9.6, 7.6), dpi=150, facecolor=SURFACE, sharex=True)
     for ax, sentido in zip(axes, (1, -1)):

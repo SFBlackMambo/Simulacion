@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .arrivals import PoissonArrivals
+from .fleet import CAMION, TruckParams
 from .idm import IDMParams
 from .overtaking import OvertakeParams
 from .recorder import Recorder, viaje
@@ -41,6 +42,7 @@ class SimConfig:
     curves: tuple = ()  # ((inicio, fin, radio), ...) en m; se usa si trazado == "recta"
     curve_a_lat: float = 2.0  # aceleración lateral cómoda en curva, m/s²
     sight_clearance: float = 10.0  # despeje lateral para la visibilidad en curva, m
+    trucks: TruckParams = field(default_factory=TruckParams)  # trucks.share = 0: sin camiones
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -98,14 +100,16 @@ def geometry_from_config(cfg: SimConfig, seed: int = 1):
     return _GEOMETRIAS[clave]
 
 
-def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True, seed: int = 1) -> float:
+def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True, seed: int = 1,
+              kind: str = "auto") -> float:
     """Tiempo de viaje en vía libre (s) para velocidad deseada `v0` (m/s)."""
     geo = geometry_from_config(cfg, seed)
     if geo is None:
         return cfg.length / v0
+    idm = cfg.trucks.idm if kind == CAMION else cfg.idm
     if exact:
-        return geo.free_time(v0, direction, cfg.idm, cfg.dt)
-    return geo.free_time_interp(v0, direction, cfg.idm, cfg.dt)
+        return geo.free_time(v0, direction, idm, cfg.dt)
+    return geo.free_time_interp(v0, direction, idm, cfg.dt)
 
 
 def probe_times(cfg: SimConfig) -> list[float]:
@@ -122,18 +126,19 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
     if cfg.mode not in MODOS:
         raise ValueError(f"modo desconocido {cfg.mode!r}; opciones: {MODOS}")
     road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
-                geometry=geometry_from_config(cfg, seed))
+                geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks)
     ss = np.random.SeedSequence(seed).spawn(2)
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
-            sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s)
+            sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, trucks=cfg.trucks)
             road.fill(direction, cfg.n_vehicles, sampler)
             road.keep_count(direction, sampler)
         else:
             limit = cfg.n_vehicles if cfg.mode == "total" else None
             road.add_source(
                 direction,
-                PoissonArrivals(cfg.flow_per_hour, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, max_count=limit),
+                PoissonArrivals(cfg.flow_per_hour, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, max_count=limit,
+                                trucks=cfg.trucks),
             )
     return road
 
@@ -186,6 +191,7 @@ def run_simulation(
         collisions=road.collisions,
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
-        trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed)) for v in road.finished],
+        trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed, kind=v.kind))
+               for v in road.finished],
         recorder=recorder,
     )

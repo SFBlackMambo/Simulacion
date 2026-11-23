@@ -60,7 +60,7 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm) -
         x += 0.5 * (v + v_new) * step
         v = v_new
         t += step
-        v_other = min(other.v0, other.v + idm.a_max * t)  # cota: `other` podría acelerar
+        v_other = min(other.v0, other.v + (other.idm or road.idm).a_max * t)  # cota: `other` podría acelerar
         rel += (v - v_other) * step
         if t > p.t_max:
             return inf
@@ -89,8 +89,8 @@ def _distance(v: float, v_max: float, T: float, a_max: float, idm=None, road=Non
 
 
 def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> bool:
-    idm = road.idm
-    a_max = idm.a_max
+    idm = veh.idm or road.idm  # dinámica del que rebasa (un camión acelera menos)
+    a_max = road.idm.a_max  # cota de aceleración de los contrarios
     t_pass = 0.0
     for other in chain:
         t = _time_to_clear(road, veh, other, p, idm)
