@@ -54,6 +54,8 @@ def _limite(road, veh: Vehicle, x: float) -> float:
     if geo is None:
         return inf
     v = geo.limit(veh.direction, x)
+    if geo.limits:
+        v = min(v, geo.speed_limit(veh.direction, x) * veh.limit_factor)
     if geo.grades:
         g = geo.grade(veh.direction, x)
         if g:
@@ -153,6 +155,9 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
             return False
     if road.length - p.v_entry * T_guard <= x_end:
         return False  # podría entrar uno por el otro extremo
+    geo = road.geometry
+    if geo is not None and veh.respects_no_pass and geo.no_pass_between(veh.direction, veh.x, x_end):
+        return False  # la maniobra invadiría una zona de no rebase señalizada
     vis = _visible(road, p, veh, chain[0], delante)
     if vis < inf:
         # Lo que no se ve puede traer un vehículo de frente: se supone uno a `v_unseen`

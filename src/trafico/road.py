@@ -2,6 +2,8 @@
 
 import math
 from collections import deque
+
+import numpy as np
 from operator import attrgetter
 
 from .arrivals import PoissonArrivals
@@ -35,6 +37,8 @@ class Road:
         recorder=None,
         geometry=None,
         trucks=None,
+        drivers=None,
+        driver_seed=None,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -46,6 +50,8 @@ class Road:
         self.recorder = recorder  # Recorder opcional (solo lee el estado)
         self.geometry = geometry if geometry is not None and not geometry.straight else None
         self.trucks = trucks  # TruckParams: tamaño y dinámica de los camiones
+        self.drivers = drivers if drivers is not None and drivers.active else None
+        self._driver_rng = np.random.default_rng(driver_seed) if self.drivers is not None else None
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -67,6 +73,8 @@ class Road:
             kw["grades"] = t.grades
         veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, kind=kind, **kw)
         self._next_id += 1
+        if self.drivers is not None and not probe:  # las sondas son conductores normales
+            self.drivers.assign(veh, self._driver_rng)
         return veh
 
     def inject(self, v0: float, direction: int = 1, probe: bool = False, kind: str = AUTO) -> Vehicle:
@@ -161,7 +169,11 @@ class Road:
                     last = u
             elif self.front_in_opposite_frame(u) < 200.0 and self.front_in_opposite_frame(u) + u.length > 0:
                 return None  # un rebasante contrario viene de frente por este carril
-        v_max = veh.v0 if self.geometry is None else min(veh.v0, self.geometry.limit(veh.direction, 0.0))
+        v_max = veh.v0
+        if self.geometry is not None:
+            v_max = min(v_max, self.geometry.limit(veh.direction, 0.0))
+            if self.geometry.limits:
+                v_max = min(v_max, self.geometry.speed_limit(veh.direction, 0.0) * veh.limit_factor)
         if last is None:
             return v_max
         gap = last.rear  # el frente del que entra está en x = 0
@@ -220,6 +232,8 @@ class Road:
                         g = geo.grade(direction, veh.x)
                         if g:
                             v0 = min(v0, speed_limit(veh.grades or AUTO_GRADES, g))
+                    if geo.limits:
+                        v0 = min(v0, geo.speed_limit(direction, veh.x) * veh.limit_factor)
                     veh.v_des = v0
                 p_idm = veh.idm or idm
                 if leader is None:

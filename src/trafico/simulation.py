@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .arrivals import PoissonArrivals
+from .drivers import DriverModel
 from .fleet import CAMION, TruckParams
 from .idm import IDMParams
 from .overtaking import OvertakeParams
@@ -45,6 +46,11 @@ class SimConfig:
     trucks: TruckParams = field(default_factory=TruckParams)  # trucks.share = 0: sin camiones
     relieve: str = "plano"  # perfil de pendientes generado (ver geometry.RELIEVES)
     grades: tuple = ()  # ((inicio, fin, pendiente en fracción), ...); se usa si relieve == "plano"
+    speed_limit_kmh: float = 0.0  # límite de velocidad en toda la carretera (0 = sin límite)
+    speed_limits: tuple = ()  # ((inicio, fin, km/h), ...) límites por tramo (se suman al general)
+    no_pass_zones: tuple = ()  # ((inicio, fin), ...) zonas de no rebase señalizadas
+    no_pass_from_sight: bool = False  # señalizar no rebase donde no hay visibilidad (curvas)
+    drivers: DriverModel = field(default_factory=DriverModel)
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -92,7 +98,8 @@ def geometry_from_config(cfg: SimConfig, seed: int = 1):
     gseed = cfg.geometry_seed or seed
     generado = cfg.trazado != "recta" or cfg.relieve != "plano"
     clave = (cfg.length, cfg.trazado, cfg.relieve, gseed if generado else 0, tuple(map(tuple, cfg.curves)),
-             tuple(map(tuple, cfg.grades)), cfg.curve_a_lat, cfg.sight_clearance)
+             tuple(map(tuple, cfg.grades)), cfg.curve_a_lat, cfg.sight_clearance, cfg.speed_limit_kmh,
+             tuple(map(tuple, cfg.speed_limits)), tuple(map(tuple, cfg.no_pass_zones)), cfg.no_pass_from_sight)
     if clave not in _GEOMETRIAS:
         if cfg.trazado == "recta":
             curvas = tuple(map(tuple, cfg.curves))
@@ -102,21 +109,39 @@ def geometry_from_config(cfg: SimConfig, seed: int = 1):
             pend = tuple(map(tuple, cfg.grades))
         else:
             pend = build_relieve(cfg.relieve, cfg.length, gseed)
-        geo = Geometry(cfg.length, curvas, a_lat=cfg.curve_a_lat, clearance=cfg.sight_clearance, grades=pend)
+        limites = tuple(map(tuple, cfg.speed_limits))
+        if cfg.speed_limit_kmh > 0:
+            limites = _con_limite_general(limites, cfg.length, cfg.speed_limit_kmh)
+        geo = Geometry(cfg.length, curvas, a_lat=cfg.curve_a_lat, clearance=cfg.sight_clearance, grades=pend,
+                       limits=limites, no_pass_zones=tuple(map(tuple, cfg.no_pass_zones)),
+                       no_pass_from_sight=cfg.no_pass_from_sight)
         _GEOMETRIAS[clave] = None if geo.straight else geo
     return _GEOMETRIAS[clave]
 
 
+def _con_limite_general(tramos: tuple, length: float, general: float) -> tuple:
+    """Rellena con el límite general los huecos entre límites por tramo."""
+    out, x = [], 0.0
+    for a, b, v in sorted(tramos):
+        if a > x:
+            out.append((x, a, general))
+        out.append((a, b, v))
+        x = max(x, b)
+    if x < length:
+        out.append((x, length, general))
+    return tuple(out)
+
+
 def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True, seed: int = 1,
-              kind: str = "auto") -> float:
+              kind: str = "auto", limit_factor: float = 1.0) -> float:
     """Tiempo de viaje en vía libre (s) para velocidad deseada `v0` (m/s)."""
     geo = geometry_from_config(cfg, seed)
     if geo is None:
         return cfg.length / v0
     idm = cfg.trucks.idm if kind == CAMION else cfg.idm
     resp = cfg.trucks.grades if kind == CAMION else None
-    if exact:
-        return geo.free_time(v0, direction, idm, cfg.dt, resp)
+    if exact or limit_factor != 1.0:
+        return geo.free_time(v0, direction, idm, cfg.dt, resp, limit_factor)
     return geo.free_time_interp(v0, direction, idm, cfg.dt, resp)
 
 
@@ -133,9 +158,11 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
     """
     if cfg.mode not in MODOS:
         raise ValueError(f"modo desconocido {cfg.mode!r}; opciones: {MODOS}")
+    seq = np.random.SeedSequence(seed)
+    ss = seq.spawn(2)  # llegadas de cada sentido (mismos hijos que antes)
     road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
-                geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks)
-    ss = np.random.SeedSequence(seed).spawn(2)
+                geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks, drivers=cfg.drivers,
+                driver_seed=seq.spawn(1)[0])
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
             sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, trucks=cfg.trucks)
@@ -199,7 +226,7 @@ def run_simulation(
         collisions=road.collisions,
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
-        trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed, kind=v.kind))
-               for v in road.finished],
+        trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed, kind=v.kind,
+                                  limit_factor=v.limit_factor)) for v in road.finished],
         recorder=recorder,
     )

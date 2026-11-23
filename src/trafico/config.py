@@ -8,13 +8,14 @@ import dataclasses
 import json
 from pathlib import Path
 
+from .drivers import DriverModel
 from .fleet import TruckParams
 from .idm import IDMParams
 from .slopes import GradeResponse
 from .overtaking import OvertakeParams
 from .simulation import SimConfig
 
-_ANIDADOS = {"idm": IDMParams, "overtaking": OvertakeParams, "trucks": TruckParams}
+_ANIDADOS = {"idm": IDMParams, "overtaking": OvertakeParams, "trucks": TruckParams, "drivers": DriverModel}
 
 # Nombres cortos en español para la línea de comandos y el menú
 ALIAS = {
@@ -34,6 +35,12 @@ ALIAS = {
     "despeje": "sight_clearance",
     "camiones": "trucks.share",
     "pendientes": "grades",
+    "limite": "speed_limit_kmh",
+    "limites": "speed_limits",
+    "zonas_no_rebase": "no_pass_zones",
+    "no_rebase_sin_visibilidad": "no_pass_from_sight",
+    "respetan_limite": "drivers.limit_compliance",
+    "respetan_no_rebase": "drivers.no_pass_compliance",
 }
 
 
@@ -55,7 +62,7 @@ def from_dict(d: dict) -> SimConfig:
             if isinstance(sub.get("grades"), dict):  # trucks.grades
                 sub["grades"] = GradeResponse(**sub["grades"])
             kw[key] = cls(**sub)
-    for clave in ("curves", "grades"):
+    for clave in ("curves", "grades", "speed_limits", "no_pass_zones"):
         if clave in kw:
             kw[clave] = tuple(tuple(c) for c in kw[clave])
     return SimConfig(**kw)
@@ -93,6 +100,11 @@ def set_param(cfg: SimConfig, name: str, value) -> SimConfig:
         return dataclasses.replace(cfg, overtaking=cfg.overtaking or OvertakeParams())
     if name == "curves" and isinstance(value, str):
         return dataclasses.replace(cfg, curves=parse_curves(value))
+    if name == "speed_limits" and isinstance(value, str):
+        return dataclasses.replace(cfg, speed_limits=parse_curves(value))
+    if name == "no_pass_zones" and isinstance(value, str):
+        zonas = tuple((float(a), float(b)) for a, b in (p.split(":") for p in value.replace(" ", "").split(";") if p))
+        return dataclasses.replace(cfg, no_pass_zones=zonas)
     if name == "grades" and isinstance(value, str):  # porcentaje -> fracción
         return dataclasses.replace(cfg, grades=tuple((a, b, g / 100.0) for a, b, g in parse_curves(value)))
     partes = name.split(".")

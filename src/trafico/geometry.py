@@ -33,6 +33,10 @@ class Geometry:
     no_pass_sight: float = 450.0  # para dibujar: con menos visibilidad se marca "no rebasar", m
     grades: tuple[tuple[float, float, float], ...] = ()  # (inicio, fin, pendiente) con pendiente
     #   en fracción (0.05 = 5 %) y positiva si sube en el sentido +1
+    limits: tuple[tuple[float, float, float], ...] = ()  # (inicio, fin, km/h): límites de velocidad
+    no_pass_zones: tuple[tuple[float, float], ...] = ()  # (inicio, fin): no rebasar (señalizado)
+    no_pass_from_sight: bool = False  # señalizar "no rebasar" donde falta visibilidad
+    limit_lookahead: float = 100.0  # se frena para un límite menor desde esta distancia, m
     grid: float = 10.0
     _tablas: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
 
@@ -53,12 +57,74 @@ class Geometry:
             if a2 < b1:
                 raise ValueError("los tramos de pendiente no pueden solaparse")
         object.__setattr__(self, "grades", pend)
+        object.__setattr__(self, "limits", tuple(sorted((float(a), float(b), float(v)) for a, b, v in self.limits)))
+        object.__setattr__(self, "no_pass_zones", tuple(sorted((float(a), float(b)) for a, b in self.no_pass_zones)))
 
     # --- consultas ---------------------------------------------------------
     @property
     def straight(self) -> bool:
-        """Recta y plana: sin curvas ni pendientes."""
-        return not self.curves and not self.grades
+        """Recta y plana, sin señales: no cambia nada respecto a no tener geometría."""
+        return not self.curves and not self.grades and not self.limits and not self.has_no_pass
+
+    @property
+    def has_no_pass(self) -> bool:
+        return bool(self.no_pass_zones) or (self.no_pass_from_sight and bool(self.curves))
+
+    def _tabla_lim(self, direction: int) -> np.ndarray:
+        """Límite de velocidad (m/s) por celda, ya anticipado `limit_lookahead` metros."""
+        t = self._tablas.get(("lim", direction))
+        if t is not None:
+            return t
+        n = int(math.ceil(self.length / self.grid)) + 1
+        xs = np.arange(n) * self.grid
+        s = xs if direction == 1 else self.length - xs
+        lim = np.full(n, np.inf)
+        for a, b, v in self.limits:
+            lim[(s >= a) & (s < b)] = v / 3.6
+        k = max(1, int(round(self.limit_lookahead / self.grid)))
+        ant = lim.copy()
+        for i in range(n):  # mínimo en los próximos `k` puntos: frena antes de la señal
+            ant[i] = lim[i:i + k + 1].min()
+        self._tablas[("lim", direction)] = ant
+        return ant
+
+    def speed_limit(self, direction: int, x: float) -> float:
+        """Límite de velocidad señalizado (m/s) en la posición propia `x`; inf si no hay."""
+        if not self.limits:
+            return math.inf
+        t = self._tabla_lim(direction)
+        return float(t[min(max(int(x / self.grid), 0), len(t) - 1)])
+
+    def _tabla_nopass(self, direction: int) -> np.ndarray:
+        t = self._tablas.get(("np", direction))
+        if t is not None:
+            return t
+        n = int(math.ceil(self.length / self.grid)) + 1
+        xs = np.arange(n) * self.grid
+        s = xs if direction == 1 else self.length - xs
+        prohibido = np.zeros(n, dtype=bool)
+        for a, b in self.no_pass_zones:
+            prohibido |= (s >= a) & (s < b)
+        if self.no_pass_from_sight and self.curves:
+            prohibido |= self._tabla_vis(direction) < self.no_pass_sight
+        self._tablas[("np", direction)] = prohibido
+        return prohibido
+
+    def no_pass_between(self, direction: int, x0: float, x1: float) -> bool:
+        """¿Hay zona de no rebase señalizada entre x0 y x1 (posición propia)?"""
+        if not self.has_no_pass:
+            return False
+        t = self._tabla_nopass(direction)
+        i0 = min(max(int(x0 / self.grid), 0), len(t) - 1)
+        i1 = min(max(int(x1 / self.grid), i0), len(t) - 1)
+        return bool(t[i0:i1 + 1].any())
+
+    def marked_no_pass(self, s: float, direction: int = 1) -> bool:
+        """Para dibujar: ¿hay línea continua (no rebasar) en el punto `s` de la carretera?"""
+        x = s if direction == 1 else self.length - s
+        if self.has_no_pass:
+            return self.no_pass_between(direction, x, x)
+        return not self.can_pass_at(s, direction) if self.curves else False
 
     @property
     def has_grades(self) -> bool:
@@ -176,25 +242,31 @@ class Geometry:
         return self.sight(direction, x) >= self.no_pass_sight
 
     # --- tiempo libre --------------------------------------------------------
-    def free_time(self, v0: float, direction: int, idm, dt: float, grades_resp=None) -> float:
+    def free_time(self, v0: float, direction: int, idm, dt: float, grades_resp=None,
+                  limit_factor: float = 1.0) -> float:
         """Tiempo que tarda un vehículo solo, con velocidad deseada `v0` (m/s).
 
         Integra las mismas ecuaciones que la carretera (IDM en vía libre más el
         seguimiento de la velocidad permitida), así que es el "ideal" con curvas.
         """
-        clave = ("t", direction, round(v0, 3), idm, dt, grades_resp)
+        clave = ("t", direction, round(v0, 3), idm, dt, grades_resp, round(limit_factor, 4))
         if clave in self._tablas:
             return self._tablas[clave]
         from .idm import idm_acceleration
         from .slopes import AUTO_GRADES, accel_limit, speed_limit
 
         r = grades_resp or AUTO_GRADES
-        x, v, t = 0.0, min(v0, self.limit(direction, 0.0)), 0.0
+        v_in = min(v0, self.limit(direction, 0.0))
+        if self.limits:
+            v_in = min(v_in, self.speed_limit(direction, 0.0) * limit_factor)
+        x, v, t = 0.0, v_in, 0.0
         while x < self.length:
             vd = min(v0, self.limit(direction, x))
             g = self.grade(direction, x) if self.grades else 0.0
             if g:
                 vd = min(vd, speed_limit(r, g))
+            if self.limits:
+                vd = min(vd, self.speed_limit(direction, x) * limit_factor)
             a = curve_accel(idm_acceleration(v, vd, None, None, idm), v, vd)
             if g > 0:
                 a = min(a, accel_limit(r, v, g))

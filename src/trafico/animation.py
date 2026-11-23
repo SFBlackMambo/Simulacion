@@ -229,7 +229,7 @@ class Animacion:
         paso = 12.0 if self.ventana < 3000 else 60.0
         s = math.floor(izq / paso) * paso
         while s < izq + self.ventana:
-            if geo is not None and not geo.can_pass_at(s):
+            if geo is not None and geo.marked_no_pass(s):
                 pg.draw.line(scr, AMARILLO, (X(s), ymid - 3), (X(s + paso), ymid - 3), 2)
                 pg.draw.line(scr, AMARILLO, (X(s), ymid + 3), (X(s + paso), ymid + 3), 2)
             elif int(round(s / paso)) % 2 == 0:

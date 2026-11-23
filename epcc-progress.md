@@ -178,3 +178,12 @@
 - slopes.py: subida por potencia específica (camión 7.5 W/kg, auto 60): v_max = P/(g·(i+c_r)) y aceleración limitada; camión 3/6/8 % → 69/39/31 km/h. Bajada con freno de motor para camiones: sin efecto hasta 3 %, luego -6 km/h por punto desde 90 (5/7/9 % → 78/66/54), mínimo 40. Autos sin cambio.
 - Geometry.grades (por tramo, + = sube en sentido +1), tablas por sentido, altura. Relieves generados: plano, lomerio (1.5-4 %), montanoso (3-7 %), con altura acotada. `--relieve`, `--camiones`, `--param "pendientes=a:b:pct;..."`. Tiempo libre y predicción del rebase con pendientes.
 - Verificado: 137 tests; huella idéntica; estrés montañoso con 20 % camiones, cambio 3 s, cadena y vista tapada: 0 colisiones, 0 emergencias.
+
+---
+
+## F022 - 2026-11-22
+- Límites de velocidad: general (`--param limite=90`) o por tramo (`limites=a:b:kmh;...`), anticipados 100 m. Zonas de no rebase señalizadas a mano (`zonas_no_rebase=a:b;...`) o automáticas donde falta visibilidad (`no_rebase_sin_visibilidad=1`).
+- drivers.py: DriverModel con rasgos por conductor sorteados con un generador propio (no cambia el tráfico): % que respeta límites (los demás se pasan 10-30 %) y % que respeta zonas de no rebase. Las sondas siempre respetan.
+- Tiempo libre y predicción del rebase consideran el límite (con el exceso propio). Hallazgo: sin eso, con límite 90 aparecían 5-7 sustos; ahora 0.
+- Hallazgo: en curvas, las zonas automáticas por visibilidad no cambian nada: la regla física de visibilidad ya impedía esos rebases. En recta con zonas de 2-5 y 6-9 km, los rebases bajan de 46 a 20 (a 32 si la mitad no respeta).
+- Verificado: 146 tests; huella idéntica.

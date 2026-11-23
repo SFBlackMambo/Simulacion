@@ -53,6 +53,10 @@ class Vehicle:
     kind: str = "auto"  # "auto" o "camion"
     lane_prev: int = -1  # carril que está dejando (durante un cambio de carril)
     lc: float = 1.0  # avance del cambio de carril: 1 = terminado
+    limit_factor: float = 1.0  # cuánto se pasa del límite (1 = lo respeta)
+    respects_no_pass: bool = True
+    driver: str = "normal"  # "prudente", "normal" o "agresivo"
+    t_stuck: float = 0.0  # tiempo seguido atrapado detrás de otro, s
     convoy_start: bool = False  # el último intento de rebase seguía a otro que ya rebasaba
     convoy_overtakes: int = 0  # rebases empezados siguiendo a otro (en cadena)
     idm: object = None  # IDMParams propios (None: los de la carretera)
