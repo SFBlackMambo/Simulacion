@@ -8,6 +8,7 @@ from .arrivals import PoissonArrivals
 from . import overtaking
 from .fleet import AUTO, CAMION, LARGO_AUTO, TruckParams
 from .geometry import curve_accel
+from .slopes import AUTO_GRADES, accel_limit, speed_limit
 from .idm import IDMParams, advance, idm_acceleration
 from .overtaking import OvertakeParams
 from .vehicle import Vehicle
@@ -63,6 +64,7 @@ class Road:
             t = self.trucks or TruckParams()
             kw.setdefault("length", t.length)
             kw["idm"] = t.idm
+            kw["grades"] = t.grades
         veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, kind=kind, **kw)
         self._next_id += 1
         return veh
@@ -211,8 +213,13 @@ class Road:
             leader = None
             for veh in lst:
                 v0 = veh.v0
+                g = 0.0
                 if geo is not None:
                     v0 = min(v0, geo.limit(direction, veh.x))
+                    if geo.grades:
+                        g = geo.grade(direction, veh.x)
+                        if g:
+                            v0 = min(v0, speed_limit(veh.grades or AUTO_GRADES, g))
                     veh.v_des = v0
                 p_idm = veh.idm or idm
                 if leader is None:
@@ -221,6 +228,8 @@ class Road:
                     a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, p_idm)
                 if geo is not None:
                     a = curve_accel(a, veh.v, v0)
+                    if g > 0:  # en subida el motor no da para más
+                        a = min(a, accel_limit(veh.grades or AUTO_GRADES, veh.v, g))
                 if opposite:
                     a = self._head_on_brake(veh, opposite, a)
                 # ¿lo frena alguien? (líder a menos de 4 s o de 50 m)

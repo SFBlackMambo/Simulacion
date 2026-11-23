@@ -171,3 +171,10 @@
 - Eventos con `en_cadena`; viajes con `rebases_en_cadena`; campañas con rebases en cadena, camiones y retraso de camiones (el análisis tolera campañas viejas).
 - Hallazgo (10 km, 3 semillas, cambio de carril 3 s, 15 % camiones): en cadena sin visión tapada hay más rebases (106 vs 95 a 350 veh/h) pero aparecen sustos (4-6 frenados de emergencia, 0 choques); con visión tapada, 0 sustos y menos rebases (78).
 - Verificado: 125 tests; huella idéntica con todo apagado.
+
+---
+
+## F021 - 2026-11-22
+- slopes.py: subida por potencia específica (camión 7.5 W/kg, auto 60): v_max = P/(g·(i+c_r)) y aceleración limitada; camión 3/6/8 % → 69/39/31 km/h. Bajada con freno de motor para camiones: sin efecto hasta 3 %, luego -6 km/h por punto desde 90 (5/7/9 % → 78/66/54), mínimo 40. Autos sin cambio.
+- Geometry.grades (por tramo, + = sube en sentido +1), tablas por sentido, altura. Relieves generados: plano, lomerio (1.5-4 %), montanoso (3-7 %), con altura acotada. `--relieve`, `--camiones`, `--param "pendientes=a:b:pct;..."`. Tiempo libre y predicción del rebase con pendientes.
+- Verificado: 137 tests; huella idéntica; estrés montañoso con 20 % camiones, cambio 3 s, cadena y vista tapada: 0 colisiones, 0 emergencias.

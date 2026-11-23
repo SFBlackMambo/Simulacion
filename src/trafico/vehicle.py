@@ -56,6 +56,7 @@ class Vehicle:
     convoy_start: bool = False  # el último intento de rebase seguía a otro que ya rebasaba
     convoy_overtakes: int = 0  # rebases empezados siguiendo a otro (en cadena)
     idm: object = None  # IDMParams propios (None: los de la carretera)
+    grades: object = None  # GradeResponse propia (None: la de un auto)
     targets: list = field(default_factory=list)
 
     def __post_init__(self) -> None:

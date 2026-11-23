@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .fleet import TruckParams
 from .idm import IDMParams
+from .slopes import GradeResponse
 from .overtaking import OvertakeParams
 from .simulation import SimConfig
 
@@ -32,6 +33,7 @@ ALIAS = {
     "a_lateral": "curve_a_lat",
     "despeje": "sight_clearance",
     "camiones": "trucks.share",
+    "pendientes": "grades",
 }
 
 
@@ -50,9 +52,12 @@ def from_dict(d: dict) -> SimConfig:
             sub = dict(kw[key])
             if isinstance(sub.get("idm"), dict):  # p. ej. trucks.idm
                 sub["idm"] = IDMParams(**sub["idm"])
+            if isinstance(sub.get("grades"), dict):  # trucks.grades
+                sub["grades"] = GradeResponse(**sub["grades"])
             kw[key] = cls(**sub)
-    if "curves" in kw:
-        kw["curves"] = tuple(tuple(c) for c in kw["curves"])
+    for clave in ("curves", "grades"):
+        if clave in kw:
+            kw[clave] = tuple(tuple(c) for c in kw[clave])
     return SimConfig(**kw)
 
 
@@ -88,6 +93,8 @@ def set_param(cfg: SimConfig, name: str, value) -> SimConfig:
         return dataclasses.replace(cfg, overtaking=cfg.overtaking or OvertakeParams())
     if name == "curves" and isinstance(value, str):
         return dataclasses.replace(cfg, curves=parse_curves(value))
+    if name == "grades" and isinstance(value, str):  # porcentaje -> fracción
+        return dataclasses.replace(cfg, grades=tuple((a, b, g / 100.0) for a, b, g in parse_curves(value)))
     partes = name.split(".")
     if len(partes) == 1:
         campos = {f.name: f for f in dataclasses.fields(SimConfig)}

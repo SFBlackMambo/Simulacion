@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass, field
 
 from .idm import IDMParams
+from .slopes import GradeResponse
 
 AUTO = "auto"
 CAMION = "camion"
@@ -35,7 +36,7 @@ class TruckParams:
     v_min_kmh: float = 50.0
     length: float = 16.5
     idm: IDMParams = field(default_factory=lambda: IDMParams(a_max=0.5, b=1.5, T=1.5))
-    power_w_kg: float = 7.5  # potencia específica (para pendientes)
+    grades: GradeResponse = field(default_factory=lambda: GradeResponse(power_w_kg=7.5, engine_brake=True))
 
     def sample_kmh(self, rng) -> float:
         """Velocidad deseada de un camión (km/h)."""
@@ -51,6 +52,3 @@ class TruckParams:
             if self.v_min_kmh <= v <= self.v_max_kmh:
                 return float(v)
 
-
-# Potencia específica de un auto (W/kg): casi no lo frenan las pendientes
-POTENCIA_AUTO = 60.0

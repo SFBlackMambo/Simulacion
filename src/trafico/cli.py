@@ -35,6 +35,12 @@ def add_config_args(ap: argparse.ArgumentParser, defaults: SimConfig) -> None:
 
     g.add_argument("--trazado", choices=list(PRESETS), default=defaults.trazado,
                    help="tipo de carretera: " + "; ".join(f"{k}: {v.descripcion}" for k, v in PRESETS.items()))
+    from .geometry import RELIEVES
+
+    g.add_argument("--relieve", choices=list(RELIEVES), default=defaults.relieve,
+                   help="pendientes: " + "; ".join(f"{k}: {v.descripcion}" for k, v in RELIEVES.items()))
+    g.add_argument("--camiones", type=float, default=defaults.trucks.share,
+                   help="fracción de camiones en el tráfico (0 a 1)")
     g.add_argument("--semilla-trazado", type=int, default=defaults.geometry_seed,
                    help="trazado concreto (0: uno distinto en cada réplica, según la semilla del tráfico)")
     g.add_argument("--sin-rebases", action="store_true", help="nadie puede rebasar")
@@ -47,8 +53,10 @@ def config_from_args(args) -> SimConfig:
         mode=args.modo, flow_per_hour=args.flujo, n_vehicles=args.vehiculos, length=args.longitud,
         v0_mean_kmh=args.v_media, v0_std_kmh=args.sigma, warmup=args.calentamiento,
         duration=args.duracion, n_probes=args.sondas, probe_spacing=args.espaciado_sondas,
-        trazado=args.trazado, geometry_seed=args.semilla_trazado,
+        trazado=args.trazado, geometry_seed=args.semilla_trazado, relieve=args.relieve,
     )
+    if args.camiones:
+        cfg = cfgmod.set_param(cfg, "trucks.share", args.camiones)
     if args.sin_rebases:
         cfg = cfgmod.set_param(cfg, "overtaking", "none")
     for p in args.param:
@@ -82,6 +90,9 @@ def cmd_corrida(argv=None) -> dict:
     if t["curvas"]:
         print(f"  trazado: {t['curvas']} curvas, {t['pct_en_curva']}% en curva, "
               f"{t['pct_no_rebase']}% sin visibilidad para rebasar, radio mínimo {t['radio_min_m']:.0f} m")
+    if t["pendiente_max_pct"]:
+        print(f"  relieve: pendiente máxima {t['pendiente_max_pct']}%, {t['pct_pendiente_fuerte']}% del recorrido "
+              f"con más de 3%, {t['desnivel_subida_m']:.0f} m de subida acumulada")
     print(f"  vehículos que salieron: {r['vehiculos_que_salieron']}  "
           f"retraso medio: {r['retraso_medio_s']:.1f} s  rebases: {r['rebases_completados']} "
           f"(abortados {r['rebases_abortados']})  colisiones: {r['colisiones']}")

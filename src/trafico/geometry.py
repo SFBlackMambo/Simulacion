@@ -31,6 +31,8 @@ class Geometry:
     b_curve: float = 1.0  # deceleración para llegar a la curva a su velocidad, m/s²
     clearance: float = 10.0  # despeje lateral para la visibilidad en curva, m
     no_pass_sight: float = 450.0  # para dibujar: con menos visibilidad se marca "no rebasar", m
+    grades: tuple[tuple[float, float, float], ...] = ()  # (inicio, fin, pendiente) con pendiente
+    #   en fracción (0.05 = 5 %) y positiva si sube en el sentido +1
     grid: float = 10.0
     _tablas: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
 
@@ -43,11 +45,53 @@ class Geometry:
             if a2 < b1:
                 raise ValueError("las curvas no pueden solaparse")
         object.__setattr__(self, "curves", curvas)
+        pend = tuple(sorted((float(a), float(b), float(g)) for a, b, g in self.grades))
+        for a, b, g in pend:
+            if not (0 <= a < b <= self.length) or abs(g) > 0.2:
+                raise ValueError(f"pendiente inválida: ({a}, {b}, {g})")
+        for (_, b1, _), (a2, _, _) in zip(pend, pend[1:]):
+            if a2 < b1:
+                raise ValueError("los tramos de pendiente no pueden solaparse")
+        object.__setattr__(self, "grades", pend)
 
     # --- consultas ---------------------------------------------------------
     @property
     def straight(self) -> bool:
-        return not self.curves
+        """Recta y plana: sin curvas ni pendientes."""
+        return not self.curves and not self.grades
+
+    @property
+    def has_grades(self) -> bool:
+        return bool(self.grades)
+
+    def _tabla_pend(self, direction: int) -> np.ndarray:
+        t = self._tablas.get(("g", direction))
+        if t is not None:
+            return t
+        n = int(math.ceil(self.length / self.grid)) + 1
+        xs = np.arange(n) * self.grid + self.grid / 2  # centro de cada celda
+        s = xs if direction == 1 else self.length - xs
+        g = np.zeros(n)
+        for a, b, pend in self.grades:
+            g[(s >= a) & (s < b)] = pend * direction  # subir en un sentido es bajar en el otro
+        self._tablas[("g", direction)] = g
+        return g
+
+    def grade(self, direction: int, x: float) -> float:
+        """Pendiente que encuentra el sentido `direction` en su posición `x` (+ = sube)."""
+        if not self.grades:
+            return 0.0
+        t = self._tabla_pend(direction)
+        return float(t[min(max(int(x / self.grid), 0), len(t) - 1)])
+
+    def elevation(self, s: float) -> float:
+        """Altura (m) en el punto `s` de la carretera, partiendo de 0 en s = 0."""
+        h = 0.0
+        for a, b, g in self.grades:
+            if s <= a:
+                break
+            h += g * (min(s, b) - a)
+        return h
 
     def curve_spans(self) -> list[tuple[float, float]]:
         return [(a, b) for a, b, _ in self.curves]
@@ -132,21 +176,28 @@ class Geometry:
         return self.sight(direction, x) >= self.no_pass_sight
 
     # --- tiempo libre --------------------------------------------------------
-    def free_time(self, v0: float, direction: int, idm, dt: float) -> float:
+    def free_time(self, v0: float, direction: int, idm, dt: float, grades_resp=None) -> float:
         """Tiempo que tarda un vehículo solo, con velocidad deseada `v0` (m/s).
 
         Integra las mismas ecuaciones que la carretera (IDM en vía libre más el
         seguimiento de la velocidad permitida), así que es el "ideal" con curvas.
         """
-        clave = ("t", direction, round(v0, 3), idm, dt)
+        clave = ("t", direction, round(v0, 3), idm, dt, grades_resp)
         if clave in self._tablas:
             return self._tablas[clave]
         from .idm import idm_acceleration
+        from .slopes import AUTO_GRADES, accel_limit, speed_limit
 
+        r = grades_resp or AUTO_GRADES
         x, v, t = 0.0, min(v0, self.limit(direction, 0.0)), 0.0
         while x < self.length:
             vd = min(v0, self.limit(direction, x))
+            g = self.grade(direction, x) if self.grades else 0.0
+            if g:
+                vd = min(vd, speed_limit(r, g))
             a = curve_accel(idm_acceleration(v, vd, None, None, idm), v, vd)
+            if g > 0:
+                a = min(a, accel_limit(r, v, g))
             v_new = max(0.0, v + a * dt)
             x += 0.5 * (v + v_new) * dt
             v = v_new
@@ -156,13 +207,13 @@ class Geometry:
         return t
 
 
-    def free_time_interp(self, v0: float, direction: int, idm, dt: float) -> float:
+    def free_time_interp(self, v0: float, direction: int, idm, dt: float, grades_resp=None) -> float:
         """`free_time` interpolado en una tabla cada 2 km/h (para muchos vehículos)."""
-        clave = ("ti", direction, idm, dt)
+        clave = ("ti", direction, idm, dt, grades_resp)
         tabla = self._tablas.get(clave)
         if tabla is None:
             vs = np.arange(40.0, 152.0, 2.0) / 3.6
-            tabla = (vs, np.array([self.free_time(v, direction, idm, dt) for v in vs]))
+            tabla = (vs, np.array([self.free_time(v, direction, idm, dt, grades_resp) for v in vs]))
             self._tablas[clave] = tabla
         return float(np.interp(v0, *tabla))
 
@@ -224,16 +275,65 @@ def build_trazado(nombre: str, length: float, seed: int) -> tuple:
     return tuple(curvas)
 
 
+@dataclass(frozen=True)
+class Relieve:
+    """Tipo de relieve para generar perfiles de pendiente al azar."""
+
+    descripcion: str
+    pct_min: float = 0.0  # pendiente de cada tramo, %
+    pct_max: float = 0.0
+    l_min: float = 400.0  # longitud de cada tramo, m
+    l_max: float = 1200.0
+    plano: float = 0.3  # fracción de tramos planos
+    h_max: float = 150.0  # altura máxima respecto al inicio, m (evita subir sin fin)
+
+
+RELIEVES = {
+    "plano": Relieve("Plano (sin pendientes)"),
+    "lomerio": Relieve("Lomerío (pendientes de 1.5 a 4 %)", 1.5, 4.0, 400, 1200, 0.3, 120),
+    "montanoso": Relieve("Montañoso (pendientes de 3 a 7 %)", 3.0, 7.0, 500, 1500, 0.15, 400),
+}
+
+
+def build_relieve(nombre: str, length: float, seed: int) -> tuple:
+    """Tramos de pendiente al azar: ((inicio, fin, pendiente en fracción), ...)."""
+    if nombre not in RELIEVES:
+        raise ValueError(f"relieve desconocido: {nombre!r}; opciones: {', '.join(RELIEVES)}")
+    r = RELIEVES[nombre]
+    if r.pct_max <= 0:
+        return ()
+    rng = np.random.default_rng([seed, 100 + list(RELIEVES).index(nombre)])
+    tramos, x, h = [], 0.0, 0.0
+    while x < length - 1.0:
+        largo = min(float(rng.uniform(r.l_min, r.l_max)), length - x)
+        if rng.random() >= r.plano:
+            pct = float(rng.uniform(r.pct_min, r.pct_max))
+            # sube o baja; si ya se está muy alto o muy bajo, se tiende a volver
+            signo = 1.0 if rng.random() < 0.5 - 0.45 * max(-1.0, min(1.0, h / r.h_max)) else -1.0
+            g = signo * pct / 100.0
+            tramos.append((round(x, 1), round(x + largo, 1), round(g, 4)))
+            h += g * largo
+        x += largo
+    return tuple(tramos)
+
+
 def describe(geo: "Geometry | None", length: float) -> dict:
     """Números del trazado: curvas, % en curva, % sin visibilidad para rebasar."""
+    vacio = {"curvas": 0, "pct_en_curva": 0.0, "pct_no_rebase": 0.0, "radio_min_m": None,
+             "pendiente_max_pct": 0.0, "pct_pendiente_fuerte": 0.0, "desnivel_subida_m": 0.0}
     if geo is None:
-        return {"curvas": 0, "pct_en_curva": 0.0, "pct_no_rebase": 0.0, "radio_min_m": None}
+        return vacio
     en_curva = sum(b - a for a, b, _ in geo.curves)
     xs = np.arange(0, length, geo.grid)
-    no_pasa = np.mean([not geo.can_pass_at(s) for s in xs])
+    no_pasa = np.mean([not geo.can_pass_at(s) for s in xs]) if geo.curves else 0.0
+    fuerte = sum(b - a for a, b, g in geo.grades if abs(g) > 0.03)
     return {
+        **vacio,
         "curvas": len(geo.curves),
         "pct_en_curva": round(100 * en_curva / length, 1),
         "pct_no_rebase": round(100 * float(no_pasa), 1),
-        "radio_min_m": min(r for _, _, r in geo.curves),
+        "radio_min_m": min((r for _, _, r in geo.curves), default=None),
+        "pendiente_max_pct": round(100 * max((abs(g) for _, _, g in geo.grades), default=0.0), 1),
+        "pct_pendiente_fuerte": round(100 * fuerte / length, 1),
+        "desnivel_subida_m": round(sum(g * (b - a) for a, b, g in geo.grades if g > 0), 0),
     }

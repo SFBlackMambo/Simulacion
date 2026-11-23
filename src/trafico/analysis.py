@@ -24,6 +24,8 @@ ETIQUETAS = {
     "v0_mean_kmh": "Velocidad deseada media (km/h)",
     "mode": "Modo de tráfico",
     "trazado": "Tipo de carretera",
+    "relieve": "Relieve",
+    "trucks.share": "Fracción de camiones",
     "sight_clearance": "Despeje lateral en curvas (m)",
     "curve_a_lat": "Aceleración lateral en curva (m/s²)",
     "overtaking": "Rebases",
@@ -40,6 +42,10 @@ def etiqueta(param: str) -> str:
 
 def valor_legible(param: str, v) -> str:
     """Texto corto para un valor de parámetro (p. ej. 20000 m -> "20 km")."""
+    if param == "relieve":
+        return {"plano": "Plano", "lomerio": "Lomerío", "montanoso": "Montañoso"}.get(v, v)
+    if param == "trucks.share" and isinstance(v, float):
+        return f"{100 * v:g} % camiones"
     if param == "trazado":
         return {"recta": "Recta", "pocas": "Pocas curvas", "muchas": "Muchas curvas", "montana": "Montaña"}.get(v, v)
     if param == "length" and isinstance(v, float):

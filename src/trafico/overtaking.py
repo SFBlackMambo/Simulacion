@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from math import inf
 
 from .recorder import REBASE_ABORTO, REBASE_FIN, REBASE_INICIO
+from .slopes import AUTO_GRADES, speed_limit
 from .vehicle import REBASANDO, REGRESANDO, SIGUIENDO, Vehicle
 
 
@@ -48,9 +49,16 @@ def _free_speed(v: float, v0: float, idm, step: float) -> float:
 
 
 def _limite(road, veh: Vehicle, x: float) -> float:
-    """Velocidad permitida por el trazado en la posición propia `x` (inf si es recta)."""
+    """Velocidad permitida por el trazado (curvas y pendientes) en la posición propia `x`."""
     geo = road.geometry
-    return inf if geo is None else geo.limit(veh.direction, x)
+    if geo is None:
+        return inf
+    v = geo.limit(veh.direction, x)
+    if geo.grades:
+        g = geo.grade(veh.direction, x)
+        if g:
+            v = min(v, speed_limit(veh.grades or AUTO_GRADES, g))
+    return v
 
 
 def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v_cap: float = inf) -> float:

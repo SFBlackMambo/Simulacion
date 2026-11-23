@@ -43,6 +43,8 @@ class SimConfig:
     curve_a_lat: float = 2.0  # aceleración lateral cómoda en curva, m/s²
     sight_clearance: float = 10.0  # despeje lateral para la visibilidad en curva, m
     trucks: TruckParams = field(default_factory=TruckParams)  # trucks.share = 0: sin camiones
+    relieve: str = "plano"  # perfil de pendientes generado (ver geometry.RELIEVES)
+    grades: tuple = ()  # ((inicio, fin, pendiente en fracción), ...); se usa si relieve == "plano"
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -85,17 +87,22 @@ def geometry_from_config(cfg: SimConfig, seed: int = 1):
     Con `geometry_seed = 0` el trazado generado depende de la semilla del tráfico
     `seed`: cada réplica ve una carretera distinta del mismo tipo.
     """
-    from .geometry import Geometry, build_trazado
+    from .geometry import Geometry, build_relieve, build_trazado
 
     gseed = cfg.geometry_seed or seed
-    clave = (cfg.length, cfg.trazado, gseed if cfg.trazado != "recta" else 0, tuple(map(tuple, cfg.curves)),
-             cfg.curve_a_lat, cfg.sight_clearance)
+    generado = cfg.trazado != "recta" or cfg.relieve != "plano"
+    clave = (cfg.length, cfg.trazado, cfg.relieve, gseed if generado else 0, tuple(map(tuple, cfg.curves)),
+             tuple(map(tuple, cfg.grades)), cfg.curve_a_lat, cfg.sight_clearance)
     if clave not in _GEOMETRIAS:
         if cfg.trazado == "recta":
             curvas = tuple(map(tuple, cfg.curves))
         else:
             curvas = build_trazado(cfg.trazado, cfg.length, gseed)
-        geo = Geometry(cfg.length, curvas, a_lat=cfg.curve_a_lat, clearance=cfg.sight_clearance)
+        if cfg.relieve == "plano":
+            pend = tuple(map(tuple, cfg.grades))
+        else:
+            pend = build_relieve(cfg.relieve, cfg.length, gseed)
+        geo = Geometry(cfg.length, curvas, a_lat=cfg.curve_a_lat, clearance=cfg.sight_clearance, grades=pend)
         _GEOMETRIAS[clave] = None if geo.straight else geo
     return _GEOMETRIAS[clave]
 
@@ -107,9 +114,10 @@ def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True,
     if geo is None:
         return cfg.length / v0
     idm = cfg.trucks.idm if kind == CAMION else cfg.idm
+    resp = cfg.trucks.grades if kind == CAMION else None
     if exact:
-        return geo.free_time(v0, direction, idm, cfg.dt)
-    return geo.free_time_interp(v0, direction, idm, cfg.dt)
+        return geo.free_time(v0, direction, idm, cfg.dt, resp)
+    return geo.free_time_interp(v0, direction, idm, cfg.dt, resp)
 
 
 def probe_times(cfg: SimConfig) -> list[float]:
