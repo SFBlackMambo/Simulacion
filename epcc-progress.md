@@ -250,3 +250,9 @@
 - 13 features (INFRA-002, F027-F038), ~45 h. Orden: huella → datos de viajes → costo y riesgo → rebase (logit de Farah, asomarse, 2+1) → barrido 90-150, volver a correr las campañas y README.
 - Decisiones: CSV; dinero en MXN; el logit de Farah va sin piso de seguridad (puede haber choques, se reportan; `gap_floor` es opcional); riesgo con tres medidas por separado; precios aplicados después de simular.
 - Siguiente: `/epcc-code INFRA-002`.
+
+---
+
+## INFRA-002 - 2026-11-23
+- tests/test_huella.py + tests/data/huella.json: 5 escenarios cortos (recta, curvas, sin rebases, realista en recta, realista en montaña con 20 % camiones). Hash SHA-256 de los campos de la dinámica de cada viaje (las columnas nuevas no cuentan), tiempos de sonda, colisiones. 7 s.
+- Idéntica en CPython 3.14 y PyPy 3.11. Regenerar solo si el cambio es intencional: `python tests/test_huella.py --actualizar`.
