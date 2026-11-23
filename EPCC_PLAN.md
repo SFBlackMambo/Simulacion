@@ -109,7 +109,7 @@ scripts/      run_experiment.py (gráficas)
 
 # Plan fase 2: más datos, animación y curvas
 
-**Creado**: 2026-11-22 | **Esfuerzo**: ~27h | **Estado**: APROBADO (2026-11-22)
+**Creado**: 2026-11-22 | **Esfuerzo**: ~27h | **Estado**: COMPLETADO (2026-11-22)
 
 ## 1. Objetivo
 - Dejar de medir solo "120 vs 130 en 20 km": guardar datos de **todos** los vehículos y poder barrer cualquier parámetro.

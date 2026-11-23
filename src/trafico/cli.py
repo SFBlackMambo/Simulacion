@@ -31,6 +31,12 @@ def add_config_args(ap: argparse.ArgumentParser, defaults: SimConfig) -> None:
     g.add_argument("--duracion", type=float, default=defaults.duration, help="s mínimos tras el calentamiento")
     g.add_argument("--sondas", type=int, default=defaults.n_probes, help="número de sondas")
     g.add_argument("--espaciado-sondas", type=float, default=defaults.probe_spacing, help="s entre sondas")
+    from .geometry import PRESETS
+
+    g.add_argument("--trazado", choices=list(PRESETS), default=defaults.trazado,
+                   help="tipo de carretera: " + "; ".join(f"{k}: {v.descripcion}" for k, v in PRESETS.items()))
+    g.add_argument("--semilla-trazado", type=int, default=defaults.geometry_seed,
+                   help="trazado concreto (0: uno distinto en cada réplica, según la semilla del tráfico)")
     g.add_argument("--sin-rebases", action="store_true", help="nadie puede rebasar")
     g.add_argument("--param", action="append", default=[], metavar="NOMBRE=VALOR",
                    help="cualquier otro parámetro, p. ej. idm.T=2.0 u overtaking.t_guard=8 (repetible)")
@@ -41,6 +47,7 @@ def config_from_args(args) -> SimConfig:
         mode=args.modo, flow_per_hour=args.flujo, n_vehicles=args.vehiculos, length=args.longitud,
         v0_mean_kmh=args.v_media, v0_std_kmh=args.sigma, warmup=args.calentamiento,
         duration=args.duracion, n_probes=args.sondas, probe_spacing=args.espaciado_sondas,
+        trazado=args.trazado, geometry_seed=args.semilla_trazado,
     )
     if args.sin_rebases:
         cfg = cfgmod.set_param(cfg, "overtaking", "none")
@@ -71,6 +78,10 @@ def cmd_corrida(argv=None) -> dict:
     print(f"Corriendo ({cfg.mode}, {cfg.length / 1000:g} km)...", flush=True)
     r = run_single(cfg, args.vel_sonda, args.semilla, out, args.fotos, graficas=not args.sin_graficas)
     print(f"Listo en {time.time() - t0:.0f} s. Datos y gráficas en {out}/")
+    t = r["trazado"]
+    if t["curvas"]:
+        print(f"  trazado: {t['curvas']} curvas, {t['pct_en_curva']}% en curva, "
+              f"{t['pct_no_rebase']}% sin visibilidad para rebasar, radio mínimo {t['radio_min_m']:.0f} m")
     print(f"  vehículos que salieron: {r['vehiculos_que_salieron']}  "
           f"retraso medio: {r['retraso_medio_s']:.1f} s  rebases: {r['rebases_completados']} "
           f"(abortados {r['rebases_abortados']})  colisiones: {r['colisiones']}")

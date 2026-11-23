@@ -7,7 +7,8 @@ import numpy as np
 
 from . import config as cfgmod
 from .recorder import CAMPOS_VIAJE, REBASE_ABORTO, REBASE_FIN, REBASE_INICIO, Recorder, write_csv
-from .simulation import RunResult, SimConfig, run_simulation
+from .geometry import describe
+from .simulation import RunResult, SimConfig, geometry_from_config, run_simulation
 
 HEADWAY_PELOTON = 3.0  # s: quien va a menos de esto de su líder está en un pelotón
 
@@ -30,12 +31,13 @@ def run_single(
     cfgmod.save(cfg, out / "config.json", velocidad_sonda=probe_v0_kmh, semilla=seed,
                 intervalo_fotos=snapshot_interval)
     resumen = summarize_run(cfg, res, rec)
+    resumen["trazado"] = describe(geometry_from_config(cfg, seed), cfg.length)
     with open(out / "resumen.json", "w") as f:
         json.dump(resumen, f, indent=2, ensure_ascii=False)
     if graficas:
         from .plots_explore import plot_all
 
-        plot_all(out, cfg, res, rec)
+        plot_all(out, cfg, res, rec, geometry_from_config(cfg, seed))
     return resumen
 
 
@@ -77,7 +79,7 @@ def platoons(snapshots: list[tuple], headway: float = HEADWAY_PELOTON):
     está en pelotón si va en su carril a menos de `headway` s del de delante.
     """
     por_t: dict[tuple[float, int], list[tuple[float, float]]] = {}
-    for t, _vid, sentido, x, v_kmh, _v0, carril, _sonda, _estado in snapshots:
+    for t, _vid, sentido, x, v_kmh, _v0, carril, _sonda, _estado, *_ in snapshots:
         if carril != (0 if sentido == 1 else 1):
             continue  # rebasando: no cuenta
         por_t.setdefault((t, sentido), []).append((x * sentido, v_kmh / 3.6))

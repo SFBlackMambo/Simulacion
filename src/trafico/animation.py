@@ -17,7 +17,7 @@ import math
 import os
 
 from .recorder import REBASE_ABORTO, REBASE_FIN
-from .simulation import SimConfig, build_road, probe_times
+from .simulation import SimConfig, build_road, free_time, probe_times
 from .vehicle import REBASANDO, REGRESANDO, kmh_a_ms, ms_a_kmh
 
 # Paleta (modo oscuro). Los tres tonos validan todas las parejas (CVD y visión normal).
@@ -183,7 +183,9 @@ class Animacion:
             f"{self.cfg.length / 1000:g} km   modo {self.cfg.mode}   "
             + (f"{self.cfg.n_vehicles} vehículos por sentido" if self.cfg.mode != "flujo"
                else f"{self.cfg.flow_per_hour:g} veh/h por sentido")
-            + f"   velocidad deseada media {self.cfg.v0_mean_kmh:g} km/h", True, TEXTO2), (40, 102))
+            + f"   velocidad deseada media {self.cfg.v0_mean_kmh:g} km/h"
+            + (f"   trazado: {len(geo.curves)} curvas" if geo is not None else "   trazado: recta"),
+            True, TEXTO2), (40, 102))
 
         # --- mapa de la carretera completa ---
         x0, y0, ancho, alto = self._rect_mapa()
@@ -289,16 +291,16 @@ class Animacion:
                 txt = f"La próxima sonda ({self.probe_v0:g} km/h) entra en {_hms(self.pendientes[0] - road.t)}"
             elif hechas:
                 s = hechas[-1]
+                libre = self._libre(s)
                 txt = (f"Última sonda: tardó {_hms(s.travel_time)}; en vía libre habría tardado "
-                       f"{_hms(self.cfg.length / s.v0)}  (perdió {s.travel_time - self.cfg.length / s.v0:.0f} s, "
-                       f"rebasó {s.overtakes})")
+                       f"{_hms(libre)}  (perdió {s.travel_time - libre:.0f} s, rebasó {s.overtakes})")
             else:
                 txt = "Sin sondas en esta corrida"
             scr.blit(self.f.render(txt, True, TEXTO), (x, y))
             return
         recorrido = sonda.x
         t = road.t - sonda.t_entry
-        libre = recorrido / sonda.v0
+        libre = self._libre(sonda) * recorrido / self.cfg.length  # aproximado a mitad de camino
         filas = [
             f"Sonda: quiere ir a {ms_a_kmh(sonda.v0):.0f} km/h, va a {ms_a_kmh(sonda.v):.0f} km/h",
             f"Recorrido {recorrido / 1000:.1f} de {self.cfg.length / 1000:g} km en {_hms(t)}",
@@ -323,7 +325,7 @@ class Animacion:
         filas_max = max(0, int((y_max - y - 26) // 24))
         perdidas = []
         for i, s in enumerate(hechas):
-            libre = self.cfg.length / s.v0
+            libre = self._libre(s)
             perdidas.append(s.travel_time - libre)
             if i >= len(hechas) - filas_max:
                 y += 24
@@ -335,6 +337,10 @@ class Animacion:
             y += 28
             scr.blit(self.f_peq.render(f"Promedio perdido: {sum(perdidas) / len(perdidas):.0f} s", True, TEXTO),
                      (xs[3] - 130, y))
+
+    def _libre(self, veh) -> float:
+        """Tiempo en vía libre del recorrido completo (con las curvas del trazado)."""
+        return free_time(self.cfg, veh.v0, veh.direction, seed=self.seed)
 
     def _leyenda(self, x, y) -> None:
         for i, (nombre, c) in enumerate(ESTADOS):

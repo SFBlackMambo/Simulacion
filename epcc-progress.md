@@ -133,3 +133,12 @@
 - La predicción del rebase respeta la velocidad de curva del que rebasa. Con esto los frenados de emergencia con curvas pasan de 10-23 por corrida a 0.
 - Animación: curvas sombreadas con radio y velocidad máxima, línea central amarilla continua donde no hay visibilidad de rebase. `--param curves=inicio:fin:radio;...`.
 - Verificado: 97 tests; recta idéntica bit a bit; 0 colisiones y 0 emergencias con curvas y tráfico.
+
+---
+
+## F017 - 2026-11-22
+- geometry.PRESETS + build_trazado: recta, pocas (0.3 curvas/km, R 300-900), muchas (1.2/km, R 150-450), montana (2.5/km, R 60-200); reproducibles por semilla. `--trazado` y `--semilla-trazado` (0 = trazado distinto en cada réplica). describe(): curvas, % en curva, % sin visibilidad para rebasar.
+- Espacio-tiempo coloreado por velocidad perdida por el tráfico (respecto a la permitida por la curva); curvas sombreadas en las gráficas. Menú pregunta el tipo de carretera y permite barrerlo.
+- Campañas: trazado × flujo (288 corridas) y longitud × flujo (192). Recta reproduce exactamente la fase 1. Ganancia 120→130 a 200 veh/h: recta 18.0 s, pocas 12.3, muchas 1.5, montaña 0.2. Con distancia, a 200 veh/h la ganancia pasa de 23 % de la ideal (5 km) a 51 % (40 km). 0 colisiones.
+- README reescrito (uso, menú, modos, trazados, animación, campañas, resultados fase 1 y 2).
+- Verificado: 109 tests.

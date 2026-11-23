@@ -23,6 +23,9 @@ ETIQUETAS = {
     "v0_std_kmh": "Dispersión de velocidades deseadas σ (km/h)",
     "v0_mean_kmh": "Velocidad deseada media (km/h)",
     "mode": "Modo de tráfico",
+    "trazado": "Tipo de carretera",
+    "sight_clearance": "Despeje lateral en curvas (m)",
+    "curve_a_lat": "Aceleración lateral en curva (m/s²)",
     "overtaking": "Rebases",
     "idm.T": "Intervalo IDM T (s)",
     "idm.a_max": "Aceleración máxima (m/s²)",
@@ -37,6 +40,8 @@ def etiqueta(param: str) -> str:
 
 def valor_legible(param: str, v) -> str:
     """Texto corto para un valor de parámetro (p. ej. 20000 m -> "20 km")."""
+    if param == "trazado":
+        return {"recta": "Recta", "pocas": "Pocas curvas", "muchas": "Muchas curvas", "montana": "Montaña"}.get(v, v)
     if param == "length" and isinstance(v, float):
         return f"{v / 1000:g} km"
     if param == "flow_per_hour" and isinstance(v, float):
@@ -56,10 +61,12 @@ def _guardar_arriba(fig, ax, path):
     """Leyenda en una fila sobre el gráfico, para que no tape los datos."""
     h, l = ax.get_legend_handles_labels()
     if h:
+        ncol = min(5, len(h))
+        filas = -(-len(h) // ncol)
         ax.legend(h, l, frameon=False, labelcolor=INK2, fontsize=9, loc="lower left",
-                  bbox_to_anchor=(0.0, 1.0), ncol=min(4, len(h)), borderaxespad=0.3)
-        ax.set_title(ax.get_title(loc="left"), loc="left", pad=26, color="#0b0b0b", fontsize=12,
-                     fontweight="bold")
+                  bbox_to_anchor=(0.0, 1.0), ncol=ncol, borderaxespad=0.3, columnspacing=1.2)
+        ax.set_title(ax.get_title(loc="left"), loc="left", pad=12 + 16 * filas, color="#0b0b0b",
+                     fontsize=12, fontweight="bold")
     _guardar(fig, ax, path, leyenda=False)
 
 
@@ -89,6 +96,8 @@ class Campaign:
         self.speeds = sorted({float(r["v_sonda"]) for r in self.corridas})
         self.seeds = sorted({int(r["semilla"]) for r in self.corridas})
         # valores de cada combinación (clave = índice de combo)
+        # orden en que se dieron los valores de cada barrido (para valores de texto)
+        self.orden = {str(v): i for _, vals in self.spec["barridos"] for i, v in enumerate(vals)}
         self.combos: dict[str, dict] = {}
         for r in self.corridas:
             self.combos.setdefault(r["combo"], {p: _num(r[p]) for p in self.params})
@@ -172,14 +181,22 @@ def _formato(v):
     return f"{v:g}" if isinstance(v, float) else str(v)
 
 
+_ORDEN: dict = {}
+
+
+def _clave(v):
+    """Números en orden numérico; textos en el orden en que se barrieron."""
+    return (1, _ORDEN.get(v, 99), v) if isinstance(v, str) else (0, 0, v)
+
+
 def _lineas(ax, filas, x, serie, campo, nombre_serie, ideal=None):
     """Una línea por valor de `serie` (máximo 8, en el orden fijo de la paleta).
 
     Las series se desplazan un poco en x para que no se tapen las barras de error,
     y las etiquetas finales se separan para que no se encimen.
     """
-    xs = sorted({f[x] for f in filas}, key=lambda v: (isinstance(v, str), v))
-    series = sorted({f[serie] for f in filas}, key=lambda v: (isinstance(v, str), v)) if serie else [None]
+    xs = sorted({f[x] for f in filas}, key=_clave)
+    series = sorted({f[serie] for f in filas}, key=_clave) if serie else [None]
     if len(series) > len(SERIES8):
         raise ValueError(f"demasiadas series ({len(series)}); máximo {len(SERIES8)}")
     pos = _eje_x(ax, xs)
@@ -242,6 +259,8 @@ def plot_campaign(folder, x: str | None = None, serie: str | None = None,
                   comparar: tuple[float, float] | None = None, salida: str | Path | None = None) -> list[Path]:
     """Tablas (CSV) y gráficas de una campaña. Devuelve las rutas generadas."""
     camp = Campaign(folder)
+    _ORDEN.clear()
+    _ORDEN.update(camp.orden)
     out = Path(salida or Path(folder) / "graficas")
     out.mkdir(parents=True, exist_ok=True)
     params = camp.params
@@ -258,16 +277,21 @@ def plot_campaign(folder, x: str | None = None, serie: str | None = None,
 
     rutas = []
     sondas, fondo = camp.probe_summary(), camp.background_summary()
+    if x == "length":  # en km se lee mejor
+        sondas = [{**f, "length": f["length"] / 1000} for f in sondas]
+        fondo = [{**f, "length": f["length"] / 1000} for f in fondo]
     write_csv(out / "resumen_sondas.csv", list(sondas[0]), _redondear(sondas))
     write_csv(out / "resumen_fondo.csv", list(fondo[0]), _redondear(fondo))
     rutas += [out / "resumen_sondas.csv", out / "resumen_fondo.csv"]
     nom_serie = (lambda v: valor_legible(serie, v)) if serie else (lambda v: "Simulado")
-    xl = etiqueta(x)
+    xl = "Longitud de la carretera (km)" if x == "length" else etiqueta(x)
 
     if comparar:
         vs, vf = comparar
         gan = camp.gain(vs, vf)
         write_csv(out / "ganancia.csv", list(gan[0]), _redondear(gan))
+        if x == "length":
+            gan = [{**f, "length": f["length"] / 1000} for f in gan]
         rutas.append(out / "ganancia.csv")
         for clave, filas in _grupos(gan, params, x, serie).items():
             fig, ax = _ax(f"Tiempo que se gana al ir a {vf:g} en vez de {vs:g} km/h", xl, "Tiempo ganado (s)")
@@ -289,7 +313,7 @@ def plot_campaign(folder, x: str | None = None, serie: str | None = None,
                               ("rebases", "Vehículos que rebasa cada sonda", "Rebases por viaje")):
         for clave, filas in _grupos(sondas, params, x, serie).items():
             # una gráfica por valor de la serie; dentro, una línea por velocidad de sonda
-            series_vals = sorted({f[serie] for f in filas}, key=lambda v: (isinstance(v, str), v)) if serie else [None]
+            series_vals = sorted({f[serie] for f in filas}, key=_clave) if serie else [None]
             for sv in series_vals:
                 sel = [f for f in filas if serie is None or f[serie] == sv]
                 extra = f" ({', '.join(filter(None, [nom_serie(sv) if serie else '', _titulo_grupo(clave)]))})"

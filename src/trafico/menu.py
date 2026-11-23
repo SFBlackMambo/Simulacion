@@ -9,6 +9,7 @@ import shlex
 import time
 
 PARAMS_BARRIDO = [
+    ("trazado", "Tipo de carretera (recta, pocas, muchas, montana)", "recta,pocas,muchas"),
     ("flujo", "Flujo por sentido (veh/h)", "100,200,300,450"),
     ("longitud", "Longitud de la carretera (m)", "10000,20000,40000"),
     ("vehiculos", "Vehículos por sentido (modos lleno/total)", "40,80,120"),
@@ -83,7 +84,11 @@ class Menu:
         nombre = nombres[int(op) - 1]
         if nombre == "recta":
             return []
-        return ["--trazado", nombre, "--param", f"geometry_seed={self.preguntar('Semilla del trazado', 1, int)}"]
+        args = ["--trazado", nombre]
+        sem = self.preguntar("Semilla del trazado (0 = uno distinto en cada réplica)", 0, int)
+        if sem:
+            args += ["--semilla-trazado", str(sem)]
+        return args
 
     # --- modos -------------------------------------------------------------
     def corrida(self) -> list[str]:

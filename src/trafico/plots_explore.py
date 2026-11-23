@@ -28,11 +28,22 @@ def _estilo(ax):
     ax.tick_params(colors=INK2, length=0)
 
 
-def plot_space_time(snapshots, path, length: float, v_max_perdida: float = 40.0) -> None:
+def _sombrear_curvas(ax, geo, eje: str = "y", escala: float = 1000.0) -> None:
+    """Sombrea los tramos en curva (bandas grises tenues)."""
+    if geo is None:
+        return
+    for a, b in geo.curve_spans():
+        if eje == "y":
+            ax.axhspan(a / escala, b / escala, color=GRID, alpha=0.5, linewidth=0, zorder=0)
+        else:
+            ax.axvspan(a / escala, b / escala, color=GRID, alpha=0.5, linewidth=0, zorder=0)
+
+
+def plot_space_time(snapshots, path, length: float, v_max_perdida: float = 40.0, geo=None) -> None:
     """Diagrama espacio-tiempo: una línea por vehículo, color = velocidad perdida (v0 - v)."""
     tray: dict[int, list] = {}
-    for t, vid, sentido, x, v, v0, _c, sonda, _e in snapshots:
-        tray.setdefault(vid, []).append((t / 60.0, x / 1000.0, max(0.0, v0 - v), sonda, sentido))
+    for t, vid, sentido, x, v, _v0, _c, sonda, _e, v_perm in snapshots:
+        tray.setdefault(vid, []).append((t / 60.0, x / 1000.0, max(0.0, v_perm - v), sonda, sentido))
     fig, axes = plt.subplots(2, 1, figsize=(9.6, 7.6), dpi=150, facecolor=SURFACE, sharex=True)
     for ax, sentido in zip(axes, (1, -1)):
         _estilo(ax)
@@ -46,6 +57,7 @@ def plot_space_time(snapshots, path, length: float, v_max_perdida: float = 40.0)
                 continue
             segs.extend(np.stack([a[:-1, :2], a[1:, :2]], axis=1))
             cols.extend(0.5 * (a[:-1, 2] + a[1:, 2]))
+        _sombrear_curvas(ax, geo)
         lc = LineCollection(segs, cmap=RAMPA, linewidths=0.6)
         lc.set_array(np.asarray(cols))
         lc.set_clim(0, v_max_perdida)
@@ -60,10 +72,13 @@ def plot_space_time(snapshots, path, length: float, v_max_perdida: float = 40.0)
                       bbox_to_anchor=(1.0, 1.0), borderaxespad=0.2)
     axes[0].autoscale(axis="x")
     axes[-1].set_xlabel("Tiempo (min)", color=INK2)
-    fig.suptitle("Diagrama espacio-tiempo: cada línea es un vehículo", x=0.02, ha="left",
+    titulo = "Diagrama espacio-tiempo: cada línea es un vehículo"
+    if geo is not None:
+        titulo += " (bandas grises: curvas)"
+    fig.suptitle(titulo, x=0.02, ha="left",
                  color=INK, fontsize=12, fontweight="bold")
     cb = fig.colorbar(lc, ax=axes, shrink=0.8, pad=0.02)
-    cb.set_label("Velocidad perdida respecto a la deseada (km/h)", color=INK2)
+    cb.set_label("Velocidad perdida por el tráfico (km/h)", color=INK2)
     cb.outline.set_visible(False)
     cb.ax.tick_params(colors=INK2, length=0)
     fig.savefig(path, facecolor=SURFACE, bbox_inches="tight")
@@ -142,13 +157,15 @@ def plot_platoons(snapshots, path, t_llenado: float = 0.0) -> None:
     _guardar(fig, ax, path)
 
 
-def plot_overtakes_by_km(events, path, length: float) -> None:
-    """Rebases completados y abortados por kilómetro de carretera."""
+def plot_overtakes_by_km(events, path, length: float, geo=None) -> None:
+    """Rebases completados y abortados por kilómetro de carretera (posición de inicio... y fin)."""
     km = max(1, int(np.ceil(length / 1000.0)))
     bins = np.arange(km + 1)
     fin = np.histogram([e["x"] / 1000 for e in events if e["tipo"] == REBASE_FIN], bins)[0]
     abo = np.histogram([e["x"] / 1000 for e in events if e["tipo"] == REBASE_ABORTO], bins)[0]
-    fig, ax = _ax("Dónde se rebasa", "Kilómetro", "Rebases")
+    fig, ax = _ax("Dónde se rebasa" + (" (bandas grises: curvas)" if geo is not None else ""),
+                  "Kilómetro", "Rebases")
+    _sombrear_curvas(ax, geo, eje="x")
     ax.bar(bins[:-1] + 0.5, fin, width=0.9, color=SERIES[1], label="Completados",
            edgecolor=SURFACE, linewidth=1)
     ax.bar(bins[:-1] + 0.5, abo, width=0.9, bottom=fin, color=SERIES[2], label="Abortados",
@@ -156,15 +173,15 @@ def plot_overtakes_by_km(events, path, length: float) -> None:
     _guardar(fig, ax, path)
 
 
-def plot_all(out: str | Path, cfg: SimConfig, res: RunResult, rec: Recorder) -> list[Path]:
+def plot_all(out: str | Path, cfg: SimConfig, res: RunResult, rec: Recorder, geo=None) -> list[Path]:
     out = Path(out)
     rutas = {
-        "espacio_tiempo.png": lambda p: plot_space_time(rec.snapshots, p, cfg.length),
+        "espacio_tiempo.png": lambda p: plot_space_time(rec.snapshots, p, cfg.length, geo=geo),
         "retraso_histograma.png": lambda p: plot_delay_hist(res.trips, p),
         "retraso_vs_velocidad.png": lambda p: plot_delay_vs_v0(res.trips, p),
         "pelotones.png": lambda p: plot_platoons(
             rec.snapshots, p, 0.0 if cfg.mode == "lleno" else cfg.length / (cfg.v0_mean_kmh / 3.6)),
-        "rebases_por_km.png": lambda p: plot_overtakes_by_km(rec.events, p, cfg.length),
+        "rebases_por_km.png": lambda p: plot_overtakes_by_km(rec.events, p, cfg.length, geo=geo),
     }
     hechas = []
     for nombre, f in rutas.items():

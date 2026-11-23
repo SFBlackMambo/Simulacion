@@ -21,7 +21,7 @@ CAMPOS_VIAJE = [
     "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n"]
-CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado"]
+CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh"]
 
 
 def viaje(veh: Vehicle, free_time: float) -> dict:
@@ -75,7 +75,7 @@ class Recorder:
         for v in road.vehicles:
             self.snapshots.append((
                 t, v.id, v.direction, round(road.position(v), 1), round(ms_a_kmh(v.v), 2),
-                round(ms_a_kmh(v.v0), 2), v.lane, int(v.probe), v.state,
+                round(ms_a_kmh(v.v0), 2), v.lane, int(v.probe), v.state, round(ms_a_kmh(v.v_des), 2),
             ))
         self._next_snapshot += self.snapshot_interval
 

@@ -528,12 +528,13 @@
       "subtasks": [
         {
           "name": "Carreteras con curvas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:51:41-07:00"
     }
   ],
   "_phase2ApprovedAt": "2026-11-22"

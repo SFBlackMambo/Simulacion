@@ -157,11 +157,11 @@ class Geometry:
 
 
     def free_time_interp(self, v0: float, direction: int, idm, dt: float) -> float:
-        """`free_time` interpolado en una tabla cada 1 km/h (para muchos vehículos)."""
+        """`free_time` interpolado en una tabla cada 2 km/h (para muchos vehículos)."""
         clave = ("ti", direction, idm, dt)
         tabla = self._tablas.get(clave)
         if tabla is None:
-            vs = np.arange(30.0, 161.0, 1.0) / 3.6
+            vs = np.arange(40.0, 152.0, 2.0) / 3.6
             tabla = (vs, np.array([self.free_time(v, direction, idm, dt) for v in vs]))
             self._tablas[clave] = tabla
         return float(np.interp(v0, *tabla))
@@ -174,8 +174,66 @@ def curve_accel(a: float, v: float, v_des: float) -> float:
     return a
 
 
+@dataclass(frozen=True)
+class Preset:
+    """Tipo de carretera para generar trazados al azar."""
+
+    descripcion: str
+    curvas_por_km: float = 0.0
+    r_min: float = 300.0  # radio, m
+    r_max: float = 900.0
+    l_min: float = 200.0  # longitud de cada curva, m
+    l_max: float = 600.0
+    recta_min: float = 150.0  # recta mínima entre curvas, m
+
+
+PRESETS = {
+    "recta": Preset("Recta (sin curvas)"),
+    "pocas": Preset("Pocas curvas suaves (0.3 por km, radio 300-900 m)", 0.3, 300, 900, 200, 600),
+    "muchas": Preset("Muchas curvas (1.2 por km, radio 150-450 m)", 1.2, 150, 450, 150, 450),
+    "montana": Preset("Montaña (2.5 curvas por km, radio 60-200 m)", 2.5, 60, 200, 80, 250, 80),
+}
+
+
 def build_trazado(nombre: str, length: float, seed: int) -> tuple:
-    """Curvas de un trazado con nombre (los trazados generados llegan en F017)."""
-    if nombre == "recta":
+    """Curvas al azar de un tipo de carretera (reproducibles con `seed`).
+
+    El número de curvas es fijo (curvas_por_km × km) para que trazados del mismo
+    tipo sean comparables; cambian su posición, su radio y su longitud.
+    """
+    if nombre not in PRESETS:
+        raise ValueError(f"trazado desconocido: {nombre!r}; opciones: {', '.join(PRESETS)}")
+    p = PRESETS[nombre]
+    n = int(round(p.curvas_por_km * length / 1000.0))
+    if n == 0:
         return ()
-    raise ValueError(f"trazado desconocido: {nombre!r}")
+    rng = np.random.default_rng([seed, list(PRESETS).index(nombre)])
+    largos = rng.uniform(p.l_min, p.l_max, n)
+    radios = np.exp(rng.uniform(np.log(p.r_min), np.log(p.r_max), n))
+    libre = length - largos.sum() - (n + 1) * p.recta_min
+    while libre < 0 and n > 0:  # no caben: menos curvas
+        n -= 1
+        largos, radios = largos[:n], radios[:n]
+        libre = length - largos.sum() - (n + 1) * p.recta_min
+    rectas = p.recta_min + rng.dirichlet(np.ones(n + 1)) * libre
+    curvas, x = [], 0.0
+    for i in range(n):
+        x += rectas[i]
+        curvas.append((round(x, 1), round(min(length, x + largos[i]), 1), round(float(radios[i]), 1)))
+        x += largos[i]
+    return tuple(curvas)
+
+
+def describe(geo: "Geometry | None", length: float) -> dict:
+    """Números del trazado: curvas, % en curva, % sin visibilidad para rebasar."""
+    if geo is None:
+        return {"curvas": 0, "pct_en_curva": 0.0, "pct_no_rebase": 0.0, "radio_min_m": None}
+    en_curva = sum(b - a for a, b, _ in geo.curves)
+    xs = np.arange(0, length, geo.grid)
+    no_pasa = np.mean([not geo.can_pass_at(s) for s in xs])
+    return {
+        "curvas": len(geo.curves),
+        "pct_en_curva": round(100 * en_curva / length, 1),
+        "pct_no_rebase": round(100 * float(no_pasa), 1),
+        "radio_min_m": min(r for _, _, r in geo.curves),
+    }
