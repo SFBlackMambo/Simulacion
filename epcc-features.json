@@ -298,6 +298,236 @@
       "passes": true,
       "status": "verified",
       "verifiedAt": "2026-11-22T00:45:05-07:00"
+    },
+    {
+      "id": "F009",
+      "name": "Registro completo",
+      "description": "Viajes de todos los vehículos, eventos de rebase y fotos periódicas",
+      "priority": "P1",
+      "implementationOrder": 10,
+      "dependencies": [
+        "F008"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Se guarda el viaje de cada vehículo (fondo y sondas)",
+        "Se registran inicio, fin y aborto de cada rebase",
+        "Fotos de posiciones cada N s; el registro se puede apagar sin cambiar resultados"
+      ],
+      "subtasks": [
+        {
+          "name": "Registro completo",
+          "status": "completed",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:00:44-07:00"
+    },
+    {
+      "id": "F010",
+      "name": "Cantidad fija de vehículos",
+      "description": "Carretera llena con N vehículos (densidad mantenida) o exactamente N vehículos",
+      "priority": "P1",
+      "implementationOrder": 11,
+      "dependencies": [
+        "F009"
+      ],
+      "estimatedHours": 2,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Modo lleno: arranca con N por sentido sin colisiones y la densidad se mantiene",
+        "Modo total: entran exactamente N y la corrida termina cuando salen todos"
+      ],
+      "subtasks": [
+        {
+          "name": "Cantidad fija de vehículos",
+          "status": "pending",
+          "estimatedHours": 2
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F011",
+      "name": "Corrida única",
+      "description": "Una simulación con datos completos y gráficas de exploración",
+      "priority": "P1",
+      "implementationOrder": 12,
+      "dependencies": [
+        "F010"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "CSV de viajes, eventos y fotos",
+        "Diagrama espacio-tiempo, histogramas, retraso vs v0 y pelotones"
+      ],
+      "subtasks": [
+        {
+          "name": "Corrida única",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F012",
+      "name": "Campañas",
+      "description": "Barrido de cualquier parámetro con réplicas, datos crudos y graficado aparte",
+      "priority": "P1",
+      "implementationOrder": 13,
+      "dependencies": [
+        "F011"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Barre cualquier campo de la configuración",
+        "Guarda config.json y CSV crudos; reanudable",
+        "Comando aparte genera gráficas desde los datos"
+      ],
+      "subtasks": [
+        {
+          "name": "Campañas",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F013",
+      "name": "Animación",
+      "description": "Animación pygame de una corrida única",
+      "priority": "P1",
+      "implementationOrder": 14,
+      "dependencies": [
+        "F011"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Muestra vehículos por color de velocidad, sondas y rebases",
+        "Pausa, velocidad y zoom; panel con estadísticas"
+      ],
+      "subtasks": [
+        {
+          "name": "Animación",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F014",
+      "name": "Menú interactivo",
+      "description": "Menú en terminal para corrida única, animación o campaña",
+      "priority": "P1",
+      "implementationOrder": 15,
+      "dependencies": [
+        "F012",
+        "F013"
+      ],
+      "estimatedHours": 2,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "El menú lanza los tres modos",
+        "Todo sigue disponible por parámetros"
+      ],
+      "subtasks": [
+        {
+          "name": "Menú interactivo",
+          "status": "pending",
+          "estimatedHours": 2
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F015",
+      "name": "Curvas y velocidad",
+      "description": "Geometría por tramos con velocidad máxima en curva",
+      "priority": "P1",
+      "implementationOrder": 16,
+      "dependencies": [
+        "F012"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Sin curvas los resultados no cambian",
+        "En curva nadie supera √(a_lat·R) y se frena antes de entrar"
+      ],
+      "subtasks": [
+        {
+          "name": "Curvas y velocidad",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F016",
+      "name": "Visibilidad",
+      "description": "Zonas de no rebase por falta de visibilidad en curvas",
+      "priority": "P1",
+      "implementationOrder": 17,
+      "dependencies": [
+        "F015"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "No se inicia un rebase que no quepa en la visibilidad",
+        "Cero colisiones con curvas"
+      ],
+      "subtasks": [
+        {
+          "name": "Visibilidad",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F017",
+      "name": "Carreteras con curvas",
+      "description": "Generador de trazados y campaña recta vs curvas",
+      "priority": "P1",
+      "implementationOrder": 18,
+      "dependencies": [
+        "F016"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-2-más-datos-animación-y-curvas",
+      "acceptanceCriteria": [
+        "Genera trazados con pocas o muchas curvas, reproducibles por semilla",
+        "Campaña y gráficas recta vs pocas vs muchas curvas en el README"
+      ],
+      "subtasks": [
+        {
+          "name": "Carreteras con curvas",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
     }
-  ]
+  ],
+  "_phase2ApprovedAt": "2026-11-22"
 }

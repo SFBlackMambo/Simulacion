@@ -7,6 +7,7 @@ import numpy as np
 from .arrivals import PoissonArrivals
 from .idm import IDMParams
 from .overtaking import OvertakeParams
+from .recorder import Recorder, viaje
 from .road import Road
 from .vehicle import kmh_a_ms
 
@@ -51,16 +52,20 @@ class RunResult:
     collisions: int
     emergency_vehicles: int
     background_finished: int
+    trips: list[dict] = field(default_factory=list)  # viaje de cada vehículo que salió
+    recorder: Recorder | None = None
 
 
-def run_simulation(cfg: SimConfig, probe_v0_kmh: float, seed: int) -> RunResult:
+def run_simulation(
+    cfg: SimConfig, probe_v0_kmh: float, seed: int, recorder: Recorder | None = None
+) -> RunResult:
     """Corre una simulación con sondas de velocidad deseada `probe_v0_kmh`.
 
     El tráfico de fondo depende solo de `seed` (números aleatorios comunes): dos
     corridas con la misma semilla y distinta velocidad de sonda ven el mismo
     tráfico de fondo, y las sondas entran en los mismos instantes.
     """
-    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking)
+    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder)
     seeds = np.random.SeedSequence(seed).spawn(2)
     for direction, ss in zip((1, -1), seeds):
         road.add_source(
@@ -99,4 +104,6 @@ def run_simulation(cfg: SimConfig, probe_v0_kmh: float, seed: int) -> RunResult:
         collisions=road.collisions,
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
+        trips=[viaje(v, cfg.length / v.v0) for v in road.finished],
+        recorder=recorder,
     )

@@ -29,6 +29,7 @@ class Road:
         b_emergency: float = 6.0,
         d_emergency: float = 30.0,
         overtaking: OvertakeParams | None = None,
+        recorder=None,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -37,6 +38,7 @@ class Road:
         self.b_emergency = b_emergency  # deceleración de emergencia, m/s²
         self.d_emergency = d_emergency  # distancia mínima frente a frente, m
         self.overtaking = overtaking  # None: nadie rebasa
+        self.recorder = recorder  # Recorder opcional (solo lee el estado)
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -120,6 +122,15 @@ class Road:
             return v_in
         return None
 
+    def position(self, veh: Vehicle) -> float:
+        """Posición del frente en coordenadas de la carretera (las del sentido +1)."""
+        return veh.x if veh.direction == 1 else self.length - veh.x
+
+    def event(self, kind: str, veh: Vehicle, n: int = 0) -> None:
+        """Avisa de un evento al registro, si hay."""
+        if self.recorder is not None:
+            self.recorder.event(self, kind, veh, n)
+
     def front_in_opposite_frame(self, other: Vehicle) -> float:
         """Posición del frente de `other` medida en el sistema del sentido contrario."""
         return self.length - other.x
@@ -163,10 +174,17 @@ class Road:
             advance(veh, a, dt)
             if veh.v < veh.v0 - 1.0:
                 veh.t_slow += dt
+                if not veh.slowed:
+                    veh.slowed = True
+                    veh.catchups += 1
+            elif veh.slowed and veh.v > veh.v0 - 0.3:
+                veh.slowed = False
         self.t += dt
         self.n_steps += 1
         self._count_collisions(groups)
         self._remove_finished()
+        if self.recorder is not None:
+            self.recorder.on_step(self)
 
     def _head_on_brake(self, veh: Vehicle, opposite: list[Vehicle], a: float) -> float:
         """Frenado de emergencia si hay un choque frontal inminente en este carril."""

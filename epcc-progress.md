@@ -70,3 +70,16 @@
 - Experimento principal (20 km, 4 flujos, 8 semillas) y sensibilidad (10 variantes, 6 semillas): 0 colisiones.
 - Resultados en README.md y docs/. Ganancia 120->130: 32.9 s (100 veh/h), 18.0 (200), 6.9 (300), 5.1 (450); ideal 46.2 s. Sin rebases: 0.1 s.
 - 53 tests pasan. Pendiente (usuario): push a GitHub desde su consola.
+
+---
+
+## Fase 2 planeada - 2026-11-22
+- Plan fase 2 aprobado (F009-F017): más datos, cantidad fija, corrida única, campañas, animación, menú, curvas y visibilidad. Ver EPCC_PLAN.md.
+- Entorno: Python 3.14; pygame no tiene wheel para 3.14, se usa pygame-ce (mismo `import pygame`).
+
+---
+
+## F009 - 2026-11-22
+- recorder.py: viajes de todos los vehículos (RunResult.trips), eventos de rebase (inicio/fin/aborto) y fotos periódicas; Recorder opcional.
+- Vehicle: veces_rebasado, alcances (episodios por debajo de v0, con histéresis), full_trip. Road.position() en coordenadas de la carretera.
+- Verificado: 58 tests; el registro no cambia los resultados; eventos cuadran con contadores.

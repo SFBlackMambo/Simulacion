@@ -9,6 +9,7 @@ El cambio de carril es instantáneo.
 from dataclasses import dataclass
 from math import inf
 
+from .recorder import REBASE_ABORTO, REBASE_FIN, REBASE_INICIO
 from .vehicle import REBASANDO, REGRESANDO, SIGUIENDO, Vehicle
 
 
@@ -113,6 +114,7 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
     veh.lane = 1 - veh.lane
     veh.state = REBASANDO
     veh.targets = chain
+    road.event(REBASE_INICIO, veh, len(chain))
     return True
 
 
@@ -142,8 +144,12 @@ def _try_return(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
         return False
     if veh.state == REGRESANDO:
         veh.overtakes += len(veh.targets)
+        for t in veh.targets:
+            t.overtaken += 1
+        road.event(REBASE_FIN, veh, len(veh.targets))
     else:
         veh.aborts += 1
+        road.event(REBASE_ABORTO, veh, len(veh.targets))
     veh.lane = home
     veh.state = SIGUIENDO
     veh.targets = []

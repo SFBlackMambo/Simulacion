@@ -45,6 +45,10 @@ class Vehicle:
     overtakes: int = 0  # vehículos rebasados
     aborts: int = 0  # rebases abortados
     emergency_steps: int = 0  # pasos con frenado de emergencia
+    overtaken: int = 0  # veces que otro lo rebasó
+    catchups: int = 0  # veces que tuvo que ir por debajo de v0 (alcanzó a alguien)
+    slowed: bool = False  # va ahora por debajo de v0 (con histéresis)
+    full_trip: bool = True  # False si empezó a mitad de la carretera (modo lleno)
     targets: list = field(default_factory=list)
 
     def __post_init__(self) -> None:

@@ -104,3 +104,34 @@ scripts/      run_experiment.py (gráficas)
 - ¿Cuántos rebases se hacen y cuánto tiempo se espera de media detrás de un lento?
 - ¿Qué efecto tiene el porcentaje de vehículos lentos?
 - ¿Cuánto cuesta en frenadas del tráfico contrario cada rebase?
+
+---
+
+# Plan fase 2: más datos, animación y curvas
+
+**Creado**: 2026-11-22 | **Esfuerzo**: ~27h | **Estado**: APROBADO (2026-11-22)
+
+## 1. Objetivo
+- Dejar de medir solo "120 vs 130 en 20 km": guardar datos de **todos** los vehículos y poder barrer cualquier parámetro.
+- Dos modos: **corrida única** (explorar y mostrar, con animación para una expo) y **campaña** (muchas simulaciones para obtener datos).
+- Añadir **curvas**: límite de velocidad por radio y visibilidad que impide rebasar, para comparar carreteras rectas y con curvas.
+
+## 2. Enfoque
+- **Registro** (`recorder.py`): viajes de todos los vehículos, eventos de rebase y fotos periódicas; se puede apagar para las campañas.
+- **Cantidad fija** (`Road.fill`): (a) carretera llena con N vehículos por sentido y entrada que mantiene la densidad; (b) exactamente N vehículos y fin cuando salen todos.
+- **Campañas**: parámetros en la línea de comandos o en JSON, réplicas en paralelo, CSV crudos + `config.json`, reanudables; graficar es un comando aparte.
+- **Animación**: pygame (dependencia opcional `[anim]`), vista esquemática en franja con curvas sombreadas, controles de pausa, velocidad y zoom.
+- **Curvas**: geometría por tramos (recta o curva con radio). Velocidad máxima en curva √(a_lat·R) con frenado anticipado. La visibilidad en curva, d = 2·√(2·R·m) con despeje lateral m, limita los rebases: solo se rebasa si la maniobra completa cabe en lo que se ve.
+
+## 3. Tareas
+**Fase A: Datos** (~11h): F009 registro completo, F010 cantidad fija, F011 corrida única con gráficas, F012 campañas.
+**Fase B: Animación** (~6h): F013 animación pygame, F014 menú interactivo.
+**Fase C: Curvas** (~10h): F015 geometría y velocidad en curva, F016 visibilidad y zonas de no rebase, F017 generador de carreteras y campaña recta vs curvas.
+**Fase D: Carreteras reales**: fuera de esta fase (importar GPX/OSM y calibrar con datos reales); otro EPCC.
+
+## 4. Riesgos
+| Riesgo | Mitigación |
+|---|---|
+| El registro hace lentas las campañas | Registro opcional; en campañas solo resúmenes por vehículo |
+| Las curvas rompen la lógica de rebase (choques) | La regla de visibilidad solo restringe; se mantienen las pruebas de cero colisiones |
+| pygame no está disponible en todas las PCs | Dependencia opcional; todo lo demás funciona sin ella |
