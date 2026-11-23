@@ -142,3 +142,8 @@
 - Campañas: trazado × flujo (288 corridas) y longitud × flujo (192). Recta reproduce exactamente la fase 1. Ganancia 120→130 a 200 veh/h: recta 18.0 s, pocas 12.3, muchas 1.5, montaña 0.2. Con distancia, a 200 veh/h la ganancia pasa de 23 % de la ideal (5 km) a 51 % (40 km). 0 colisiones.
 - README reescrito (uso, menú, modos, trazados, animación, campañas, resultados fase 1 y 2).
 - Verificado: 109 tests.
+
+---
+
+## Fase 3 planeada - 2026-11-22
+- Plan fase 3 aprobado (F018-F026): camiones, cambio de carril gradual, rebase en cadena, pendientes, señales, conductores, reacción. Todo apagado por defecto; preset --realista.

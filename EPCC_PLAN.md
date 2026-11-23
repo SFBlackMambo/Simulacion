@@ -135,3 +135,30 @@ scripts/      run_experiment.py (gráficas)
 | El registro hace lentas las campañas | Registro opcional; en campañas solo resúmenes por vehículo |
 | Las curvas rompen la lógica de rebase (choques) | La regla de visibilidad solo restringe; se mantienen las pruebas de cero colisiones |
 | pygame no está disponible en todas las PCs | Dependencia opcional; todo lo demás funciona sin ella |
+
+---
+
+# Plan fase 3: comportamiento más realista
+
+**Creado**: 2026-11-22 | **Esfuerzo**: ~31h | **Estado**: APROBADO (2026-11-22)
+
+## 1. Objetivo
+Añadir camiones, cambio de carril gradual, rebase en cadena con visión tapada, pendientes, límites de velocidad y zonas de no rebase señalizadas, tipos de conductor con impaciencia y tiempo de reacción.
+
+## 2. Decisiones
+- Todo lo nuevo viene **apagado por defecto**: con los valores por defecto los resultados son idénticos bit a bit a los de las fases 1 y 2. Un preset `--realista` lo enciende con valores razonables.
+- Camiones: 16.5 m, a = 0.5 m/s². Velocidad deseada: normal asimétrica (a = -3, loc 108.5, escala 6.5 km/h): moda ~105, 96 % entre 90 y 110, 0.5 % bajo 90, 3.5 % sobre 110; más 2 % de anomalías (1.5 % entre 60 y 90, 0.5 % entre 110 y 125). Tope 125 km/h.
+- Los camiones se distinguen por forma (más largos, con cabina), no por color: la paleta ya está al límite de tonos distinguibles.
+- Rebase en cadena: se puede seguir a otro que rebasa si el rebase propio es seguro. Detrás de un camión no se ve el carril contrario salvo a más de ~3 s; detrás de un coche se ve, pero menos lejos.
+- Pendientes con modelo de potencia específica (W/kg): limita velocidad y aceleración en subida.
+- Reacción: la aceleración responde con retraso; el frenado de emergencia sigue siendo inmediato.
+
+## 3. Tareas
+F018 camiones (4h), F019 cambio de carril gradual (4h, riesgo A), F020 rebase en cadena (4h, A), F021 pendientes (4h), F022 límites y zonas de no rebase (3h), F023 tipos de conductor e impaciencia (3h), F024 tiempo de reacción (3h, A), F025 animación y menú (3h), F026 campañas y README (3h).
+
+## 4. Riesgos
+| Riesgo | Mitigación |
+|---|---|
+| Choques al combinar cambio lento, cadena y reacción | Escenarios por feature; 0 colisiones en todas las campañas |
+| Cambiar resultados previos sin querer | Cada feature apagada = resultados idénticos bit a bit (prueba de regresión) |
+| Rendimiento con parámetros por vehículo | Medir; mantener O(n) por paso |

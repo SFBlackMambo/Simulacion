@@ -535,7 +535,241 @@
       "passes": true,
       "status": "verified",
       "verifiedAt": "2026-11-22T18:51:41-07:00"
+    },
+    {
+      "id": "F018",
+      "name": "Camiones",
+      "description": "Clases de vehículo con parámetros propios y distribución de velocidad de camiones",
+      "priority": "P1",
+      "implementationOrder": 19,
+      "dependencies": [
+        "F017"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Con 0 % de camiones los resultados no cambian",
+        "Camiones de 16.5 m y a=0.5, velocidad con moda ~105 y anomalías",
+        "Cero colisiones con camiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Camiones",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F019",
+      "name": "Cambio de carril gradual",
+      "description": "El cambio de carril dura unos segundos y ocupa los dos carriles",
+      "priority": "P1",
+      "implementationOrder": 20,
+      "dependencies": [
+        "F018"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Con duración 0 los resultados no cambian",
+        "Durante el cambio ocupa ambos carriles",
+        "Cero colisiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Cambio de carril gradual",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F020",
+      "name": "Rebase en cadena",
+      "description": "Varios vehículos pueden rebasar a la vez; el de delante tapa la vista",
+      "priority": "P1",
+      "implementationOrder": 21,
+      "dependencies": [
+        "F019"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Desactivado: resultados idénticos",
+        "Activado: hay rebases simultáneos del mismo sentido",
+        "Detrás de un camión cercano no se inicia",
+        "Cero colisiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Rebase en cadena",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F021",
+      "name": "Pendientes",
+      "description": "Perfil de pendientes con límite por potencia",
+      "priority": "P1",
+      "implementationOrder": 22,
+      "dependencies": [
+        "F018"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Sin pendientes no cambia nada",
+        "En 6 % un camión no supera ~40 km/h; un coche casi no lo nota",
+        "Tiempo libre con pendientes"
+      ],
+      "subtasks": [
+        {
+          "name": "Pendientes",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F022",
+      "name": "Límites y zonas de no rebase",
+      "description": "Límites de velocidad y zonas de no rebase señalizadas con cumplimiento parcial",
+      "priority": "P1",
+      "implementationOrder": 23,
+      "dependencies": [
+        "F021"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Sin señales no cambia nada",
+        "Quien respeta no supera el límite ni rebasa en zona prohibida",
+        "Un % configurable no respeta"
+      ],
+      "subtasks": [
+        {
+          "name": "Límites y zonas de no rebase",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F023",
+      "name": "Tipos de conductor",
+      "description": "Prudente/normal/agresivo e impaciencia",
+      "priority": "P1",
+      "implementationOrder": 24,
+      "dependencies": [
+        "F020"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Todos normales: idéntico",
+        "Agresivos rebasan más; la impaciencia reduce el margen con el tiempo atrapado",
+        "Cero colisiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Tipos de conductor",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F024",
+      "name": "Tiempo de reacción",
+      "description": "Respuesta con retraso al de delante",
+      "priority": "P1",
+      "implementationOrder": 25,
+      "dependencies": [
+        "F023"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Reacción 0: idéntico",
+        "Con 1 s: cero colisiones en campañas"
+      ],
+      "subtasks": [
+        {
+          "name": "Tiempo de reacción",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F025",
+      "name": "Animación y menú fase 3",
+      "description": "Camiones, cambio de carril visible, pendientes, señales; preset realista",
+      "priority": "P1",
+      "implementationOrder": 26,
+      "dependencies": [
+        "F024",
+        "F022"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "La animación muestra todo lo nuevo",
+        "Menú y --realista"
+      ],
+      "subtasks": [
+        {
+          "name": "Animación y menú fase 3",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F026",
+      "name": "Campañas y README fase 3",
+      "description": "Efecto de camiones, pendientes, cadena y conductores",
+      "priority": "P1",
+      "implementationOrder": 27,
+      "dependencies": [
+        "F025"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-3-comportamiento-más-realista",
+      "acceptanceCriteria": [
+        "Campañas sin colisiones",
+        "README con resultados"
+      ],
+      "subtasks": [
+        {
+          "name": "Campañas y README fase 3",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
     }
   ],
-  "_phase2ApprovedAt": "2026-11-22"
+  "_phase2ApprovedAt": "2026-11-22",
+  "_phase3ApprovedAt": "2026-11-22"
 }
