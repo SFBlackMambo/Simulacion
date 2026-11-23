@@ -172,10 +172,10 @@ class Road:
         """Posición del frente en coordenadas de la carretera (las del sentido +1)."""
         return veh.x if veh.direction == 1 else self.length - veh.x
 
-    def event(self, kind: str, veh: Vehicle, n: int = 0) -> None:
+    def event(self, kind: str, veh: Vehicle, n: int = 0, cadena: bool = False) -> None:
         """Avisa de un evento al registro, si hay."""
         if self.recorder is not None:
-            self.recorder.event(self, kind, veh, n)
+            self.recorder.event(self, kind, veh, n, cadena)
 
     def front_in_opposite_frame(self, other: Vehicle) -> float:
         """Posición del frente de `other` medida en el sistema del sentido contrario."""

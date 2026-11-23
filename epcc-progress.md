@@ -162,3 +162,12 @@
 - Cambio de carril gradual: `overtaking.t_lane_change` (s, 0 = instantáneo). Durante el cambio el vehículo ocupa los dos carriles (aparece en ambos grupos; se aplica la aceleración más restrictiva); el cálculo de seguridad suma el regreso. Vehicle.change_lane / occupies / lc; la animación interpola la posición lateral.
 - Hallazgo: con 3 s, un rebase que esperaba hueco para volver provocaba sustos (frenado de emergencia del contrario). Solución: la amenaza se detecta t_lane_change antes y, si viene alguien de frente, se acepta volver en un hueco de la mitad.
 - Verificado: 120 tests; huella idéntica con duración 0; estrés 24 corridas con 3 s y 20 % camiones: 0 colisiones, 0 emergencias.
+
+---
+
+## F020 - 2026-11-22
+- Rebase en cadena (`overtaking.convoy`): se puede empezar a rebasar siguiendo a otro que ya va en el carril contrario, si el rebase propio es seguro suponiendo que no se irá más rápido que el de delante. Siguen prohibidos si hay alguien detrás en el carril contrario o uno que está volviendo.
+- Visión tapada (`overtaking.blocked_view`): detrás de un camión a menos de 3 s no se ve el carril contrario; detrás de un auto (o del que rebasa delante) a menos de 2 s se ven 500 m. Lo no visible se trata como en las curvas (vehículo supuesto donde acaba la vista).
+- Eventos con `en_cadena`; viajes con `rebases_en_cadena`; campañas con rebases en cadena, camiones y retraso de camiones (el análisis tolera campañas viejas).
+- Hallazgo (10 km, 3 semillas, cambio de carril 3 s, 15 % camiones): en cadena sin visión tapada hay más rebases (106 vs 95 a 350 veh/h) pero aparecen sustos (4-6 frenados de emergencia, 0 choques); con visión tapada, 0 sustos y menos rebases (78).
+- Verificado: 125 tests; huella idéntica con todo apagado.

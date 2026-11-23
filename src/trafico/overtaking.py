@@ -33,6 +33,11 @@ class OvertakeParams:
     v_unseen: float = 30.0  # velocidad supuesta de un vehículo que no se ve (tras una curva), m/s
     t_guard_unseen: float = 2.0  # margen frente a ese vehículo supuesto, s
     t_lane_change: float = 0.0  # duración de cada cambio de carril, s (0 = instantáneo)
+    convoy: bool = False  # se puede seguir a otro que ya rebasa (varios a la vez)
+    blocked_view: bool = False  # el vehículo de delante tapa la vista del carril contrario
+    truck_block_headway: float = 3.0  # detrás de un camión a menos de esto (s) no se ve nada
+    car_block_headway: float = 2.0  # detrás de un auto a menos de esto (s) se ve poco
+    sight_behind_car: float = 500.0  # cuánto se ve detrás de un auto cercano, m
     window_back: float = 300.0  # no rebasar si otro del mismo sentido rebasa en esta zona, m
     window_front: float = 600.0
 
@@ -48,7 +53,7 @@ def _limite(road, veh: Vehicle, x: float) -> float:
     return inf if geo is None else geo.limit(veh.direction, x)
 
 
-def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm) -> float:
+def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v_cap: float = inf) -> float:
     """Tiempo para que `veh` deje a `other` atrás con holgura (inf si no lo logra).
 
     El que rebasa no puede ir más rápido de lo que permite el trazado; para el
@@ -57,7 +62,7 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm) -
     dist = other.x + p.m_back + veh.length - veh.x
     v, rel, t, step, x = veh.v, 0.0, 0.0, 0.5, veh.x
     while rel < dist:
-        v_new = min(_free_speed(v, veh.v0, idm, step), max(_limite(road, veh, x), v - 3.0 * step))
+        v_new = min(_free_speed(v, veh.v0, idm, step), max(min(_limite(road, veh, x), v_cap), v - 3.0 * step))
         x += 0.5 * (v + v_new) * step
         v = v_new
         t += step
@@ -68,7 +73,8 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm) -
     return t
 
 
-def _distance(v: float, v_max: float, T: float, a_max: float, idm=None, road=None, veh=None) -> float:
+def _distance(v: float, v_max: float, T: float, a_max: float, idm=None, road=None, veh=None,
+              v_cap: float = inf) -> float:
     """Distancia recorrida en `T` s partiendo de `v` y acelerando hacia `v_max`.
 
     Con `idm` sigue la curva de aceleración en vía libre (y, con `road`, los
@@ -82,46 +88,68 @@ def _distance(v: float, v_max: float, T: float, a_max: float, idm=None, road=Non
             v_new = min(v_max, v + a_max * step)
         else:
             v_new = _free_speed(v, v_max, idm, step)
-            if road is not None and road.geometry is not None:
-                v_new = min(v_new, max(_limite(road, veh, veh.x + x), v - 3.0 * step))
+            if road is not None and (road.geometry is not None or v_cap < inf):
+                v_new = min(v_new, max(min(_limite(road, veh, veh.x + x), v_cap), v - 3.0 * step))
         x += 0.5 * (v + v_new) * step
         v, t = v_new, t + step
     return x
 
 
+def _visible(road, p: OvertakeParams, veh: Vehicle, leader: Vehicle, delante: list) -> float:
+    """Cuánto ve `veh` del carril contrario (m), según el trazado y quién le tapa la vista."""
+    vis = inf if road.geometry is None else road.geometry.sight(veh.direction, veh.x)
+    if not p.blocked_view:
+        return vis
+    v = max(veh.v, 1.0)
+    for b in [leader, *delante]:
+        hw = (b.rear - veh.x) / v
+        if b.kind == "camion" and hw < p.truck_block_headway:
+            return 0.0
+        if hw < p.car_block_headway:
+            vis = min(vis, p.sight_behind_car)
+    return vis
+
+
 def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> bool:
     idm = veh.idm or road.idm  # dinámica del que rebasa (un camión acelera menos)
     a_max = road.idm.a_max  # cota de aceleración de los contrarios
+    target = 1 - veh.lane
+    # ¿hay otros del mismo sentido en el carril contrario cerca?
+    delante = []
+    for u in road.vehicles:
+        if u is veh or u.direction != veh.direction or not u.occupies(target):
+            continue
+        if veh.x - p.window_back < u.x < veh.x + p.window_front:
+            if not p.convoy or u.x <= veh.x or u.state == SIGUIENDO:
+                return False  # uno detrás, o uno que vuelve: no se arriesga
+            delante.append(u)  # va rebasando delante: se le puede seguir
+    veh.convoy_start = bool(delante)
+    v_cap = min((u.v_des for u in delante), default=inf)  # no irá más rápido que el de delante
     t_pass = 0.0
     for other in chain:
-        t = _time_to_clear(road, veh, other, p, idm)
+        t = _time_to_clear(road, veh, other, p, idm, v_cap)
         if t == inf:
             return False
         t_pass = max(t_pass, t)
     T = t_pass + p.t_margin + p.t_lane_change  # hasta volver del todo al carril propio
-    x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh) + p.d_margin
+    x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh, v_cap) + p.d_margin
     T_guard = T + p.t_guard
-    target = 1 - veh.lane
     for u in road.vehicles:
-        if u is veh:
+        if u is veh or u.direction == veh.direction:
             continue
-        if u.direction == veh.direction:
-            if u.occupies(target) and veh.x - p.window_back < u.x < veh.x + p.window_front:
-                return False
-        else:
-            front = road.front_in_opposite_frame(u)
-            if front + u.length < veh.rear:
-                continue  # ya se cruzó con `veh`
-            # el contrario podría acelerar hasta su v0: se toma la cota más pesimista
-            if front - _distance(u.v, u.v0, T_guard, a_max) <= x_end:
-                return False
+        front = road.front_in_opposite_frame(u)
+        if front + u.length < veh.rear:
+            continue  # ya se cruzó con `veh`
+        # el contrario podría acelerar hasta su v0: se toma la cota más pesimista
+        if front - _distance(u.v, u.v0, T_guard, a_max) <= x_end:
+            return False
     if road.length - p.v_entry * T_guard <= x_end:
         return False  # podría entrar uno por el otro extremo
-    if road.geometry is not None:
+    vis = _visible(road, p, veh, chain[0], delante)
+    if vis < inf:
         # Lo que no se ve puede traer un vehículo de frente: se supone uno a `v_unseen`
-        # justo donde acaba la visibilidad. Así en curva solo se rebasa si cabe en lo visible.
-        horizonte = veh.x + road.geometry.sight(veh.direction, veh.x)
-        if horizonte - p.v_unseen * (T + p.t_guard_unseen) <= x_end:
+        # justo donde acaba la visibilidad. Así solo se rebasa si la maniobra cabe en lo visible.
+        if veh.x + vis - p.v_unseen * (T + p.t_guard_unseen) <= x_end:
             return False
     return True
 
@@ -145,7 +173,9 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
     veh.change_lane(1 - veh.lane, p.t_lane_change)
     veh.state = REBASANDO
     veh.targets = chain
-    road.event(REBASE_INICIO, veh, len(chain))
+    road.event(REBASE_INICIO, veh, len(chain), cadena=veh.convoy_start)
+    if veh.convoy_start:
+        veh.convoy_overtakes += 1
     return True
 
 

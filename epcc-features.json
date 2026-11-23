@@ -610,12 +610,13 @@
       "subtasks": [
         {
           "name": "Rebase en cadena",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 4
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T19:34:32-07:00"
     },
     {
       "id": "F021",

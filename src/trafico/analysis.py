@@ -130,10 +130,14 @@ class Campaign:
         for combo, vals in self.combos.items():
             corr = [r for r in self.corridas if r["combo"] == combo]
             fila = dict(vals)
-            for campo in ("retraso_fondo", "rebases_fondo", "alcances_fondo", "t_lento_fondo", "n_fondo"):
+            for campo in ("retraso_fondo", "rebases_fondo", "alcances_fondo", "t_lento_fondo", "n_fondo",
+                          "rebases_en_cadena_fondo", "retraso_camiones"):
+                if corr and campo not in corr[0]:
+                    continue  # campaña de una versión anterior
                 por_s = defaultdict(list)
                 for r in corr:
-                    por_s[r["semilla"]].append(float(r[campo]))
+                    if r[campo] not in ("", "nan"):
+                        por_s[r["semilla"]].append(float(r[campo]))
                 m, hw = mean_ci([sum(x) / len(x) for x in por_s.values()])
                 fila[campo], fila[campo + "_ic95"] = m, hw
             fila["colisiones"] = sum(int(r["colisiones"]) for r in corr)

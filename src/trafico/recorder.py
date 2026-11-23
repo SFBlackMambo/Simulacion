@@ -18,9 +18,9 @@ REBASE_ABORTO = "rebase_aborto"
 CAMPOS_VIAJE = [
     "id", "sentido", "v0_kmh", "sonda", "viaje_completo", "t_entrada", "t_salida",
     "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "abortos", "veces_rebasado",
-    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase",
+    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase", "rebases_en_cadena",
 ]
-CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n"]
+CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n", "en_cadena"]
 CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh", "clase"]
 
 
@@ -46,6 +46,7 @@ def viaje(veh: Vehicle, free_time: float) -> dict:
         "t_espera_entrada": round(veh.t_wait_entry, 2),
         "frenado_emergencia": int(veh.emergency_steps > 0),
         "clase": veh.kind,
+        "rebases_en_cadena": veh.convoy_overtakes,
     }
 
 
@@ -62,11 +63,11 @@ class Recorder:
         self.snapshots: list[tuple] = []
         self._next_snapshot = 0.0
 
-    def event(self, road, kind: str, veh: Vehicle, n: int = 0) -> None:
+    def event(self, road, kind: str, veh: Vehicle, n: int = 0, cadena: bool = False) -> None:
         if self.keep_events:
             self.events.append({
                 "t": round(road.t, 2), "tipo": kind, "id": veh.id, "sentido": veh.direction,
-                "x": round(road.position(veh), 1), "n": n,
+                "x": round(road.position(veh), 1), "n": n, "en_cadena": int(cadena),
             })
 
     def on_step(self, road) -> None:

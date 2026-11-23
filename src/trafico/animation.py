@@ -382,7 +382,7 @@ class _Contador:
         self.fin = 0
         self.aborto = 0
 
-    def event(self, road, kind, veh, n=0):
+    def event(self, road, kind, veh, n=0, cadena=False):
         if kind == REBASE_FIN:
             self.fin += 1
         elif kind == REBASE_ABORTO:
