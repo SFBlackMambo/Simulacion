@@ -213,17 +213,49 @@ class Geometry:
         comb = np.empty(n)
         comb[:-1] = curva[1:]  # misma convención que `limit`: punto de rejilla siguiente
         comb[-1] = curva[-1]
-        if self.grades:
-            pend = self._tabla_pend(direction)
-            from .slopes import downhill_speed
+        if self.grades and resp.engine_brake:
+            # freno de motor en bajadas fuertes y largas (solo camiones pesados)
+            from .slopes import engine_brake_speed
 
-            # Solo la bajada limita la velocidad deseada (freno de motor). En subida no se "frena":
-            # el motor no da para más y el vehículo pierde velocidad poco a poco (ver accel_limit).
-            comb = np.minimum(comb, [downhill_speed(resp, g) if g < 0 else np.inf for g in pend])
+            pend = self._tabla_pend(direction)
+            larga = self._tabla_bajada_larga(direction, resp)
+            tope = np.array([engine_brake_speed(resp, g) if lg else np.inf for g, lg in zip(pend, larga)])
+            for i in range(n - 2, -1, -1):  # se prepara antes de empezar a bajar
+                tope[i] = min(tope[i], math.sqrt(tope[i + 1] ** 2 + 2 * self.b_curve * self.grid))
+            comb = np.minimum(comb, tope)
         if self.limits:
             comb = np.minimum(comb, self._tabla_lim(direction) * limit_factor)
         t = comb.tolist()
         self._tablas[clave] = t
+        return t
+
+    def _tabla_bajada_larga(self, direction: int, resp) -> np.ndarray:
+        """Celdas dentro de una bajada fuerte (más de `steep`) más larga que `long_descent_m`."""
+        pend = self._tabla_pend(direction)
+        fuerte = pend < -resp.steep
+        out = np.zeros(len(pend), dtype=bool)
+        i = 0
+        while i < len(pend):
+            if fuerte[i]:
+                j = i
+                while j < len(pend) and fuerte[j]:
+                    j += 1
+                if (j - i) * self.grid >= resp.long_descent_m:
+                    out[i:j] = True
+                i = j
+            else:
+                i += 1
+        return out
+
+    def mult_list(self, direction: int, resp=None) -> list:
+        """Factor sobre la velocidad deseada por celda: en bajada el conductor se deja llevar."""
+        from .slopes import downhill_factor
+
+        resp = resp or _AUTO_GRADES
+        clave = ("mult", direction, resp)
+        t = self._tablas.get(clave)
+        if t is None:
+            t = self._tablas[clave] = [downhill_factor(resp, g) for g in self._tabla_pend(direction)]
         return t
 
     def grade_list(self, direction: int) -> list:
@@ -290,23 +322,25 @@ class Geometry:
         if clave in self._tablas:
             return self._tablas[clave]
         from .idm import idm_acceleration
-        from .slopes import AUTO_GRADES, accel_limit, downhill_speed
+        from .slopes import AUTO_GRADES, accel_limit
 
         r = grades_resp or AUTO_GRADES
+        tabla = self.vlim_list(direction, r, limit_factor)
+        n = len(tabla) - 1
+        mult = self.mult_list(direction, r) if self.grades else None
+        # la física del motor se aplica con relieve, y a los camiones siempre (potencia y aire)
+        pend = self.grade_list(direction) if self.grades else ([0.0] * (n + 1) if grades_resp is not None else None)
         v_in = min(v0, self.limit(direction, 0.0))
         if self.limits:
             v_in = min(v_in, self.speed_limit(direction, 0.0) * limit_factor)
         x, v, t = 0.0, v_in, 0.0
         while x < self.length:
-            vd = min(v0, self.limit(direction, x))
-            g = self.grade(direction, x) if self.grades else 0.0
-            if g < 0:
-                vd = min(vd, downhill_speed(r, g))
-            if self.limits:
-                vd = min(vd, self.speed_limit(direction, x) * limit_factor)
+            k = min(int(x / self.grid), n)
+            vd = v0 if mult is None else v0 * mult[k]
+            vd = min(vd, tabla[k])
             a = curve_accel(idm_acceleration(v, vd, None, None, idm), v, vd)
-            if g > 0:
-                a = min(a, accel_limit(r, v, g))
+            if pend is not None:
+                a = min(a, accel_limit(r, v, pend[k]))
             v_new = max(0.0, v + a * dt)
             x += 0.5 * (v + v_new) * dt
             v = v_new
@@ -400,7 +434,8 @@ class Relieve:
 RELIEVES = {
     "plano": Relieve("Plano (sin pendientes)"),
     "lomerio": Relieve("Lomerío (pendientes de 1.5 a 4 %)", 1.5, 4.0, 400, 1200, 0.3, 120),
-    "montanoso": Relieve("Montañoso (pendientes de 3 a 7 %)", 3.0, 7.0, 500, 1500, 0.15, 400),
+    # SCT: en terreno montañoso la pendiente gobernadora es 4-6 % y la máxima 6-8 % según el tipo
+    "montanoso": Relieve("Montañoso (pendientes de 3 a 6 %, a veces 7 %)", 3.0, 6.0, 300, 800, 0.15, 400),
 }
 
 
@@ -417,6 +452,8 @@ def build_relieve(nombre: str, length: float, seed: int) -> tuple:
         largo = min(float(rng.uniform(r.l_min, r.l_max)), length - x)
         if rng.random() >= r.plano:
             pct = float(rng.uniform(r.pct_min, r.pct_max))
+            if nombre == "montanoso" and rng.random() < 0.1:
+                pct = float(rng.uniform(6.0, 7.0))  # algún tramo corto de pendiente máxima
             # sube o baja; si ya se está muy alto o muy bajo, se tiende a volver
             signo = 1.0 if rng.random() < 0.5 - 0.45 * max(-1.0, min(1.0, h / r.h_max)) else -1.0
             g = signo * pct / 100.0

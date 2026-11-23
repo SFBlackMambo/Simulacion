@@ -134,15 +134,26 @@ def _con_limite_general(tramos: tuple, length: float, general: float) -> tuple:
     return tuple(out)
 
 
+def _plana(length: float):
+    from .geometry import Geometry
+
+    clave = ("plana", length)
+    if clave not in _GEOMETRIAS:
+        _GEOMETRIAS[clave] = Geometry(length)
+    return _GEOMETRIAS[clave]
+
+
 def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True, seed: int = 1,
-              kind: str = "auto", limit_factor: float = 1.0) -> float:
+              kind: str = "auto", limit_factor: float = 1.0, grades=None) -> float:
     """Tiempo de viaje en vía libre (s) para velocidad deseada `v0` (m/s)."""
     geo = geometry_from_config(cfg, seed)
     if geo is None:
-        return cfg.length / v0
+        if kind != CAMION:
+            return cfg.length / v0
+        geo = _plana(cfg.length)  # los camiones tienen física de motor también en llano
     idm = cfg.trucks.idm if kind == CAMION else cfg.idm
-    resp = cfg.trucks.grades if kind == CAMION else None
-    if exact or limit_factor != 1.0:
+    resp = (grades or cfg.trucks.response()) if kind == CAMION else None
+    if exact or limit_factor != 1.0 or kind == CAMION:  # cada camión tiene su potencia
         return geo.free_time(v0, direction, idm, cfg.dt, resp, limit_factor)
     return geo.free_time_interp(v0, direction, idm, cfg.dt, resp)
 
@@ -164,7 +175,8 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
     ss = seq.spawn(2)  # llegadas de cada sentido (mismos hijos que antes)
     road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
                 geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks, drivers=cfg.drivers,
-                driver_seed=seq.spawn(1)[0], reaction_time=cfg.reaction_time,
+                driver_seed=seq.spawn(1)[0], truck_seed=seq.spawn(1)[0] if cfg.trucks.share > 0 else None,
+                reaction_time=cfg.reaction_time,
                 b_physical=cfg.b_physical)
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
@@ -230,6 +242,6 @@ def run_simulation(
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
         trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed, kind=v.kind,
-                                  limit_factor=v.limit_factor)) for v in road.finished],
+                                  limit_factor=v.limit_factor, grades=v.grades)) for v in road.finished],
         recorder=recorder,
     )

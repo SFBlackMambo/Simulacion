@@ -11,7 +11,6 @@ from pathlib import Path
 from .drivers import DriverModel
 from .fleet import TruckParams
 from .idm import IDMParams
-from .slopes import GradeResponse
 from .overtaking import OvertakeParams
 from .simulation import SimConfig
 
@@ -63,8 +62,7 @@ def from_dict(d: dict) -> SimConfig:
             sub = dict(kw[key])
             if isinstance(sub.get("idm"), dict):  # p. ej. trucks.idm
                 sub["idm"] = IDMParams(**sub["idm"])
-            if isinstance(sub.get("grades"), dict):  # trucks.grades
-                sub["grades"] = GradeResponse(**sub["grades"])
+            sub.pop("grades", None)  # campañas viejas guardaban la respuesta fija del camión
             kw[key] = cls(**sub)
     for clave in ("curves", "grades", "speed_limits", "no_pass_zones"):
         if clave in kw:

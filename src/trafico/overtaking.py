@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from math import inf
 
 from .recorder import REBASE_ABORTO, REBASE_FIN, REBASE_INICIO
-from .slopes import AUTO_GRADES, accel_limit
+from .slopes import AUTO_GRADES, accel_limit, uphill_speed
 from .vehicle import REBASANDO, REGRESANDO, SIGUIENDO, Vehicle
 
 
@@ -87,6 +87,7 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v
     a_other = (other.idm or road.idm).a_max
     pend = road.geometry.grade_list(veh.direction) if tabla is not None and road.geometry.grades else None
     resp = veh.grades or AUTO_GRADES
+    fisica = pend is not None or veh.grades is not None  # camiones: el motor limita también en llano
     while rel < dist:
         if tabla is None:
             lim = v_cap
@@ -94,9 +95,12 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v
             k = int(x / grid)
             k = 0 if k < 0 else (n if k > n else k)
             lim = min(tabla[k], v_cap)
+        if tabla is None:
+            k = 0
         v_new = min(v + a_max * (1.0 - (v / v0) ** delta) * step, max(lim, v - 3.0 * step))
-        if pend is not None and pend[k] > 0:  # en subida el motor limita la aceleración
-            v_new = min(v_new, max(0.0, v + accel_limit(resp, v, pend[k]) * step))
+        if fisica:  # el motor (pendiente y aire) limita la aceleración
+            g = pend[k] if pend is not None else 0.0
+            v_new = min(v_new, max(0.0, v + accel_limit(resp, v, g) * step))
         x += 0.5 * (v + v_new) * step
         v = v_new
         t += step
@@ -210,7 +214,12 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
         return False  # aún termina un cambio de carril
     leader = lst[i - 1]
     dv_min = p.dv_min * (road.drivers.dv_factor(veh) if road.drivers is not None else 1.0)
-    if leader.rear - veh.x > p.trigger_gap or leader.v + dv_min > veh.v_des:
+    v_puede = veh.v_des
+    if veh.grades is not None:  # un camión compara con lo que su motor puede sostener aquí
+        geo = road.geometry
+        g = geo.grade(veh.direction, veh.x) if geo is not None and geo.grades else 0.0
+        v_puede = min(v_puede, uphill_speed(veh.grades, g))
+    if leader.rear - veh.x > p.trigger_gap or leader.v + dv_min > v_puede:
         return False
     need = veh.length + p.m_back + p.m_front
     chain = [leader]

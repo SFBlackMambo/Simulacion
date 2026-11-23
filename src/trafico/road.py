@@ -39,6 +39,7 @@ class Road:
         recorder=None,
         geometry=None,
         trucks=None,
+        truck_seed=None,
         drivers=None,
         driver_seed=None,
         reaction_time: float = 0.0,
@@ -54,6 +55,7 @@ class Road:
         self.recorder = recorder  # Recorder opcional (solo lee el estado)
         self.geometry = geometry if geometry is not None and not geometry.straight else None
         self.trucks = trucks  # TruckParams: tamaño y dinámica de los camiones
+        self._truck_rng = np.random.default_rng(truck_seed) if truck_seed is not None else None
         self.drivers = drivers if drivers is not None and drivers.active else None
         self._driver_rng = np.random.default_rng(driver_seed) if self.drivers is not None else None
         self._idm_cache: dict = {}
@@ -78,7 +80,7 @@ class Road:
             t = self.trucks or TruckParams()
             kw.setdefault("length", t.length)
             kw["idm"] = t.idm
-            kw["grades"] = t.grades
+            kw["grades"] = t.response(self._truck_rng)
         veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, kind=kind, **kw)
         self._next_id += 1
         if self.drivers is not None and not probe:  # las sondas son conductores normales
@@ -244,15 +246,20 @@ class Road:
                     leader = None  # saliendo a rebasar: el de delante ya no le estorba (salvo muy cerca)
                 v0 = veh.v0
                 g = 0.0
+                g_activo = False
                 if geo is not None:
                     tabla = veh.vlim
                     if tabla is None:
                         tabla = veh.vlim = geo.vlim_list(direction, veh.grades, veh.limit_factor)
                     k = int(veh.x / geo.grid)
                     k = 0 if k < 0 else (len(tabla) - 1 if k >= len(tabla) else k)
-                    v0 = min(v0, tabla[k])
                     if geo.grades:
                         g = geo.grade_list(direction)[k]
+                        v0 = v0 * geo.mult_list(direction, veh.grades)[k]  # en bajada se deja llevar
+                        g_activo = True
+                    else:
+                        g_activo = False
+                    v0 = min(v0, tabla[k])
                     veh.v_des = v0
                 p_idm = veh.idm or idm
                 if leader is None:
@@ -275,8 +282,8 @@ class Road:
                     a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, p_idm)
                 if geo is not None:
                     a = curve_accel(a, veh.v, v0)
-                    if g > 0:  # en subida el motor no da para más
-                        a = min(a, accel_limit(veh.grades or AUTO_GRADES, veh.v, g))
+                if g_activo or veh.grades is not None:  # el motor no da para más (pendiente, aire)
+                    a = min(a, accel_limit(veh.grades or AUTO_GRADES, veh.v, g))
                 a_seguir = a
                 a_frontal = self._head_on_brake(veh, opposite, math.inf) if opposite else math.inf
                 a = min(a_seguir, a_frontal)

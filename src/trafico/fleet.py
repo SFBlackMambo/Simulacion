@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass, field
 
 from .idm import IDMParams
-from .slopes import GradeResponse
+from .slopes import truck_response
 
 AUTO = "auto"
 CAMION = "camion"
@@ -36,7 +36,24 @@ class TruckParams:
     v_min_kmh: float = 50.0
     length: float = 16.5
     idm: IDMParams = field(default_factory=lambda: IDMParams(a_max=0.5, b=1.5, T=1.5))
-    grades: GradeResponse = field(default_factory=lambda: GradeResponse(power_w_kg=7.5, engine_brake=True))
+    # Relación peso/potencia (lb/hp, potencia neta): log-normal calibrada con NCHRP 505 (carreteras
+    # de dos carriles: mediana ~150, P85 ~220) más una fracción de "fulles" muy cargados como el
+    # vehículo de proyecto de la SCT (T3-S2-R4 de 75.5 t y 430 hp ≈ 390 lb/hp).
+    lbhp_median: float = 150.0
+    lbhp_sigma: float = 0.37
+    heavy_share: float = 0.15
+    heavy_lbhp_min: float = 330.0
+    heavy_lbhp_max: float = 410.0
+
+    def response(self, rng=None):
+        """Cómo responde a las pendientes un camión (potencia sorteada; la mediana si no hay `rng`)."""
+        if rng is None:
+            return truck_response(self.lbhp_median)
+        if rng.random() < self.heavy_share:
+            lbhp = rng.uniform(self.heavy_lbhp_min, self.heavy_lbhp_max)
+        else:
+            lbhp = self.lbhp_median * math.exp(self.lbhp_sigma * rng.standard_normal())
+        return truck_response(min(450.0, max(60.0, lbhp)))
 
     def sample_kmh(self, rng) -> float:
         """Velocidad deseada de un camión (km/h)."""
