@@ -187,3 +187,11 @@
 - Tiempo libre y predicción del rebase consideran el límite (con el exceso propio). Hallazgo: sin eso, con límite 90 aparecían 5-7 sustos; ahora 0.
 - Hallazgo: en curvas, las zonas automáticas por visibilidad no cambian nada: la regla física de visibilidad ya impedía esos rebases. En recta con zonas de 2-5 y 6-9 km, los rebases bajan de 46 a 20 (a 32 si la mitad no respeta).
 - Verificado: 146 tests; huella idéntica.
+
+---
+
+## F023 - 2026-11-22
+- Tipos de conductor (`prudentes`, `agresivos` = fracciones): multiplican el margen con el contrario (×1.5 / ×0.5), el intervalo IDM T (×1.3 / ×0.7) y la diferencia de velocidad para decidir rebasar (×1.5 / ×0.5). Impaciencia (`impaciencia` = s atrapado): el margen baja linealmente hasta 50 % en 120 s más. Vehicle.t_stuck; viajes con `conductor`.
+- Corrección: el modelo de conductores no se activaba solo con impaciencia (active no la incluía).
+- Resultado (10 km, 300 veh/h, 3 semillas): rebases por viaje agresivo 0.21-0.22, normal 0.14-0.15, prudente 0.09; 0 colisiones y 0 emergencias. La impaciencia sola casi no cambia (0.15 → 0.16): coherente con la sensibilidad de la fase 1, el margen no es lo que más limita.
+- Verificado: 151 tests; huella idéntica.

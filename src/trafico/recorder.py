@@ -18,7 +18,7 @@ REBASE_ABORTO = "rebase_aborto"
 CAMPOS_VIAJE = [
     "id", "sentido", "v0_kmh", "sonda", "viaje_completo", "t_entrada", "t_salida",
     "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "abortos", "veces_rebasado",
-    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase", "rebases_en_cadena",
+    "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase", "rebases_en_cadena", "conductor",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n", "en_cadena"]
 CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh", "clase"]
@@ -47,6 +47,7 @@ def viaje(veh: Vehicle, free_time: float) -> dict:
         "frenado_emergencia": int(veh.emergency_steps > 0),
         "clase": veh.kind,
         "rebases_en_cadena": veh.convoy_overtakes,
+        "conductor": veh.driver,
     }
 
 

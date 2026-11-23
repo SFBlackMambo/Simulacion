@@ -34,7 +34,7 @@ class DriverModel:
     @property
     def active(self) -> bool:
         return (self.limit_compliance < 1.0 or self.no_pass_compliance < 1.0 or self.share_cautious > 0
-                or self.share_aggressive > 0)
+                or self.share_aggressive > 0 or self.impatience_after > 0)
 
     def assign(self, veh, rng: np.random.Generator) -> None:
         """Sortea los rasgos de un conductor (siempre el mismo número de sorteos)."""

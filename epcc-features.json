@@ -691,12 +691,13 @@
       "subtasks": [
         {
           "name": "Tipos de conductor",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T19:51:00-07:00"
     },
     {
       "id": "F024",

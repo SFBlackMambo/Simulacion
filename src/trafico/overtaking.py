@@ -143,7 +143,8 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         t_pass = max(t_pass, t)
     T = t_pass + p.t_margin + p.t_lane_change  # hasta volver del todo al carril propio
     x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh, v_cap) + p.d_margin
-    T_guard = T + p.t_guard
+    f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
+    T_guard = T + p.t_guard * f_guard
     for u in road.vehicles:
         if u is veh or u.direction == veh.direction:
             continue
@@ -162,7 +163,7 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
     if vis < inf:
         # Lo que no se ve puede traer un vehículo de frente: se supone uno a `v_unseen`
         # justo donde acaba la visibilidad. Así solo se rebasa si la maniobra cabe en lo visible.
-        if veh.x + vis - p.v_unseen * (T + p.t_guard_unseen) <= x_end:
+        if veh.x + vis - p.v_unseen * (T + p.t_guard_unseen * f_guard) <= x_end:
             return False
     return True
 
@@ -171,7 +172,8 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
     if veh.lc < 1.0:
         return False  # aún termina un cambio de carril
     leader = lst[i - 1]
-    if leader.rear - veh.x > p.trigger_gap or leader.v + p.dv_min > veh.v_des:
+    dv_min = p.dv_min * (road.drivers.dv_factor(veh) if road.drivers is not None else 1.0)
+    if leader.rear - veh.x > p.trigger_gap or leader.v + dv_min > veh.v_des:
         return False
     need = veh.length + p.m_back + p.m_front
     chain = [leader]

@@ -1,5 +1,6 @@
 """Carretera: simulación por pasos de tiempo."""
 
+import dataclasses
 import math
 from collections import deque
 
@@ -52,6 +53,7 @@ class Road:
         self.trucks = trucks  # TruckParams: tamaño y dinámica de los camiones
         self.drivers = drivers if drivers is not None and drivers.active else None
         self._driver_rng = np.random.default_rng(driver_seed) if self.drivers is not None else None
+        self._idm_cache: dict = {}
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -75,6 +77,13 @@ class Road:
         self._next_id += 1
         if self.drivers is not None and not probe:  # las sondas son conductores normales
             self.drivers.assign(veh, self._driver_rng)
+            f = self.drivers.T_factor(veh)
+            if f != 1.0:
+                base = veh.idm or self.idm
+                clave = (base, f)
+                if clave not in self._idm_cache:
+                    self._idm_cache[clave] = dataclasses.replace(base, T=base.T * f)
+                veh.idm = self._idm_cache[clave]
         return veh
 
     def inject(self, v0: float, direction: int = 1, probe: bool = False, kind: str = AUTO) -> Vehicle:
@@ -264,6 +273,7 @@ class Road:
                     veh.catchups += 1
             elif veh.slowed and veh.v > veh.v_des - 0.3:
                 veh.slowed = False
+            veh.t_stuck = veh.t_stuck + dt if veh.slowed else 0.0
         self.t += dt
         self.n_steps += 1
         self._count_collisions(groups)

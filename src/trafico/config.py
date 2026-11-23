@@ -41,6 +41,9 @@ ALIAS = {
     "no_rebase_sin_visibilidad": "no_pass_from_sight",
     "respetan_limite": "drivers.limit_compliance",
     "respetan_no_rebase": "drivers.no_pass_compliance",
+    "prudentes": "drivers.share_cautious",
+    "agresivos": "drivers.share_aggressive",
+    "impaciencia": "drivers.impatience_after",
 }
 
 
