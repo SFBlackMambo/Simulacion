@@ -184,7 +184,8 @@ class Animacion:
             + (f"{self.cfg.n_vehicles} vehículos por sentido" if self.cfg.mode != "flujo"
                else f"{self.cfg.flow_per_hour:g} veh/h por sentido")
             + f"   velocidad deseada media {self.cfg.v0_mean_kmh:g} km/h"
-            + (f"   trazado: {len(geo.curves)} curvas" if geo is not None else "   trazado: recta"),
+            + (f"   trazado: {len(geo.curves)} curvas" if geo is not None and geo.curves else "   trazado: recta")
+            + (f"   relieve: {self.cfg.relieve}" if geo is not None and geo.grades else ""),
             True, TEXTO2), (40, 102))
 
         # --- mapa de la carretera completa ---
@@ -205,8 +206,11 @@ class Animacion:
         for km in range(0, int(L / 1000) + 1, max(1, int(L / 1000) // 10)):
             scr.blit(self.f_peq.render(f"{km} km", True, TEXTO2), (x0 + km * 1000 / L * ancho - 12, y0 + alto + 8))
 
-        # --- tramo ampliado ---
+        # --- perfil de alturas (si hay pendientes) ---
         top = 250
+        if geo is not None and geo.grades:
+            self._perfil(geo, x0, y0 + alto + 58, ancho, 36, a, b)
+            top = 330
         alto_via = 120 if h >= 800 else 96
         carril = alto_via / 2
         izq = self.centro - self.ventana / 2
@@ -224,6 +228,14 @@ class Animacion:
                     pg.draw.rect(scr, CURVA, (xa, top, xb - xa, alto_via))
                     txt = f"curva R = {r:.0f} m · máx {ms_a_kmh(geo.curve_speed(r)):.0f} km/h"
                     scr.blit(self.f_peq.render(txt, True, TEXTO2), (xa + 6, top + alto_via + 6))
+            for a_, b_, g in geo.grades:  # rótulos de pendiente (vistos desde el sentido →)
+                if b_ > izq and a_ < izq + self.ventana:
+                    xa = max(40, X(a_))
+                    txt = f"{'sube' if g > 0 else 'baja'} {abs(100 * g):.1f} %"
+                    scr.blit(self.f_peq.render(txt, True, TEXTO2), (xa + 220, top - 22))
+            for a_, b_, lim in geo.limits:  # señales de límite de velocidad
+                if izq <= a_ < izq + self.ventana:
+                    self._senal(X(a_) + 16, top - 16, lim)
         # línea central: discontinua, o continua donde no se puede rebasar
         ymid = top + carril
         paso = 12.0 if self.ventana < 3000 else 60.0
@@ -284,7 +296,7 @@ class Animacion:
         # --- panel de la sonda y leyenda ---
         ypan = yreg + 44
         self._panel_sonda(sonda, 40, ypan)
-        self._leyenda(w - 420, ypan)
+        self._leyenda(w - 440, ypan)
         self._tabla_sondas(40, ypan + 140, h - 60)
         ayuda = ("Espacio pausa   +/- velocidad   rueda/Z/X zoom   flechas mover   S seguir sonda   "
                  "Tab otra sonda   R reiniciar   F11 pantalla completa   Esc salir")
@@ -354,6 +366,62 @@ class Animacion:
             r = self.pg.Rect(x, y + i * 28 + 4, 30, 14)
             self.pg.draw.rect(self.screen, c, r, border_radius=3)
             self.screen.blit(self.f.render(nombre, True, TEXTO2), (x + 42, y + i * 28))
+        yy = y + len(ESTADOS) * 28
+        if self.cfg.trucks.share > 0:
+            r = self.pg.Rect(x - 14, yy + 4, 44, 14)
+            self.pg.draw.rect(self.screen, C_LIBRE, r, border_radius=3)
+            self.pg.draw.rect(self.screen, FONDO, (x + 20, yy + 4, 2, 14))
+            self.screen.blit(self.f.render("Camión (largo, con cabina)", True, TEXTO2), (x + 42, yy))
+            yy += 28
+        partes = self._texto_modelo()
+        if partes:
+            yy += 12
+            self.screen.blit(self.f_peq.render("Modelo:", True, TEXTO), (x - 14, yy))
+            for p in partes:
+                yy += 22
+                self.screen.blit(self.f_peq.render("· " + p, True, TEXTO2), (x - 14, yy))
+
+    def _texto_modelo(self) -> list[str]:
+        """Qué comportamiento extra está activado (fase 3)."""
+        c, o, d = self.cfg, self.cfg.overtaking, self.cfg.drivers
+        partes = []
+        if c.trucks.share > 0:
+            partes.append(f"{100 * c.trucks.share:g} % camiones")
+        if o is not None and o.t_lane_change > 0:
+            partes.append(f"cambio de carril {o.t_lane_change:g} s")
+        if o is not None and o.convoy:
+            partes.append("rebase en cadena")
+        if d.share_cautious or d.share_aggressive:
+            partes.append(f"{100 * d.share_cautious:g} % prudentes, {100 * d.share_aggressive:g} % agresivos")
+        if d.impatience_after > 0:
+            partes.append(f"impaciencia tras {d.impatience_after:g} s atrapado")
+        if c.reaction_time > 0:
+            partes.append(f"reacción {c.reaction_time:g} s")
+        if c.speed_limit_kmh > 0 or c.speed_limits:
+            partes.append(f"límites (respeta {100 * d.limit_compliance:g} %)")
+        return partes
+
+    def _perfil(self, geo, x0, y0, ancho, alto, a_vis, b_vis) -> None:
+        """Perfil de alturas de toda la carretera, con la ventana visible marcada."""
+        pg, scr, L = self.pg, self.screen, self.cfg.length
+        n = 300
+        hs = [geo.elevation(L * i / n) for i in range(n + 1)]
+        h_min, h_max = min(hs), max(hs)
+        rango = max(h_max - h_min, 20.0)
+        pts = [(x0 + ancho * i / n, y0 + alto - (hh - h_min) / rango * alto) for i, hh in enumerate(hs)]
+        pg.draw.rect(scr, (34, 34, 33), (x0 + a_vis / L * ancho, y0 - 2, max(2, (b_vis - a_vis) / L * ancho),
+                                          alto + 4))
+        pg.draw.lines(scr, TEXTO2, False, pts, 2)
+        scr.blit(self.f_peq.render(f"perfil de alturas ({rango:.0f} m de desnivel)", True, TEXTO2),
+                 (x0, y0 - 20))
+
+    def _senal(self, x, y, kmh) -> None:
+        """Señal circular de límite de velocidad."""
+        pg = self.pg
+        pg.draw.circle(self.screen, (240, 239, 236), (x, y), 14)
+        pg.draw.circle(self.screen, (208, 59, 59), (x, y), 14, 3)
+        t = self.f_peq.render(f"{kmh:.0f}", True, FONDO)
+        self.screen.blit(t, (x - t.get_width() / 2, y - t.get_height() / 2))
 
     # ------------------------------------------------------------------
     def run(self, max_frames: int | None = None, screenshot: str | None = None) -> None:

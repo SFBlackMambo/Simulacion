@@ -44,6 +44,9 @@ def add_config_args(ap: argparse.ArgumentParser, defaults: SimConfig) -> None:
     g.add_argument("--semilla-trazado", type=int, default=defaults.geometry_seed,
                    help="trazado concreto (0: uno distinto en cada réplica, según la semilla del tráfico)")
     g.add_argument("--sin-rebases", action="store_true", help="nadie puede rebasar")
+    g.add_argument("--realista", action="store_true",
+                   help="10%% camiones, cambio de carril de 3 s, rebase en cadena con visión tapada, "
+                        "conductores prudentes/agresivos con impaciencia, reacción de 1 s y no rebase donde no se ve")
     g.add_argument("--param", action="append", default=[], metavar="NOMBRE=VALOR",
                    help="cualquier otro parámetro, p. ej. idm.T=2.0 u overtaking.t_guard=8 (repetible)")
 
@@ -59,6 +62,10 @@ def config_from_args(args) -> SimConfig:
         cfg = cfgmod.set_param(cfg, "trucks.share", args.camiones)
     if args.sin_rebases:
         cfg = cfgmod.set_param(cfg, "overtaking", "none")
+    if args.realista:
+        cfg = cfgmod.realista(cfg)
+        if args.camiones:
+            cfg = cfgmod.set_param(cfg, "trucks.share", args.camiones)
     for p in args.param:
         nombre, _, valor = p.partition("=")
         cfg = cfgmod.set_param(cfg, nombre.strip(), valor.strip())

@@ -203,3 +203,11 @@
 - Hallazgo 1: con retraso puro de 1 s el IDM es inestable: un frenón del líder crece por el pelotón hasta detener al décimo coche. Se usó el Human Driver Model (Treiber 2006): estimación del hueco al momento de actuar + multi-anticipación (3 de delante, pesos 1/j²). Con eso el pelotón es estable hasta 1.2 s y el hueco de equilibrio no cambia (~39 m).
 - Hallazgo 2: al cambiar de carril se aplicaban frenazos decididos en el carril anterior (bajaba de 120 a 38 km/h y provocaba sustos). Ahora el cambio de carril descarta las decisiones pendientes. Resultado: 0 emergencias.
 - Verificado: 157 tests; huella idéntica; estrés con todo activado: 0 colisiones, 0 emergencias.
+
+---
+
+## F025 - 2026-11-22
+- Preset `--realista` (config.PRESET_REALISTA): 10 % camiones, cambio de carril 3 s, cadena + vista tapada, 20 % prudentes / 15 % agresivos, impaciencia 60 s, reacción 1 s, no rebase donde no se ve (90 % respeta), límites respetados por el 80 %. `--param` lo sobreescribe; `--camiones` en la CLI.
+- Animación: perfil de alturas con la ventana visible, rótulos "sube/baja x %", señales circulares de límite, camiones largos con cabina, cambio de carril visible, lista del modelo activo en la columna de la leyenda.
+- Menú: relieve, % de camiones y modelo realista; se pueden barrer relieve y camiones.
+- Verificado: 160 tests; capturas revisadas.

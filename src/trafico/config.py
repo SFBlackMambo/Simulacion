@@ -147,3 +147,30 @@ def get_param(cfg: SimConfig, name: str):
             return None
         obj = getattr(obj, parte)
     return obj
+
+
+# Preset "realista": enciende todo el comportamiento de la fase 3 con valores razonables.
+PRESET_REALISTA = {
+    "trucks.share": 0.10,
+    "overtaking.t_lane_change": 3.0,
+    "overtaking.convoy": True,
+    "overtaking.blocked_view": True,
+    "drivers.share_cautious": 0.20,
+    "drivers.share_aggressive": 0.15,
+    "drivers.impatience_after": 60.0,
+    "drivers.limit_compliance": 0.80,
+    "drivers.no_pass_compliance": 0.90,
+    "no_pass_from_sight": True,
+    "reaction_time": 1.0,
+}
+
+
+def realista(cfg: SimConfig) -> SimConfig:
+    """Aplica el preset realista (camiones, cambio de carril lento, cadena, conductores, reacción)."""
+    for k, v in PRESET_REALISTA.items():
+        if k == "overtaking.convoy" and cfg.overtaking is None:
+            continue  # sin rebases no hay nada que ajustar
+        if k.startswith("overtaking.") and cfg.overtaking is None:
+            continue
+        cfg = set_param(cfg, k, v)
+    return cfg

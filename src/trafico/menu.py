@@ -10,6 +10,8 @@ import time
 
 PARAMS_BARRIDO = [
     ("trazado", "Tipo de carretera (recta, pocas, muchas, montana)", "recta,pocas,muchas"),
+    ("relieve", "Relieve (plano, lomerio, montanoso)", "plano,lomerio,montanoso"),
+    ("camiones", "Fracción de camiones (0 a 1)", "0,0.1,0.25"),
     ("flujo", "Flujo por sentido (veh/h)", "100,200,300,450"),
     ("longitud", "Longitud de la carretera (m)", "10000,20000,40000"),
     ("vehiculos", "Vehículos por sentido (modos lleno/total)", "40,80,120"),
@@ -71,6 +73,23 @@ class Menu:
         km = self.preguntar("Longitud de la carretera (km)", longitud_km, float)
         args += ["--longitud", _fmt(km * 1000)]
         args += self.trazado()
+        args += self.relieve_y_modelo()
+        return args
+
+    def relieve_y_modelo(self) -> list[str]:
+        """Relieve, camiones y comportamiento realista (fase 3)."""
+        from .geometry import RELIEVES
+
+        nombres = list(RELIEVES)
+        op = self.elegir("¿Qué relieve tiene?", [(str(i + 1), RELIEVES[n].descripcion) for i, n in enumerate(nombres)])
+        args = [] if nombres[int(op) - 1] == "plano" else ["--relieve", nombres[int(op) - 1]]
+        realista = self.si_no("¿Comportamiento realista? (camiones, cambio de carril de 3 s, rebase en cadena, "
+                              "conductores distintos, reacción de 1 s)", False)
+        cam = self.preguntar("Porcentaje de camiones", 10 if realista else 0, float)
+        if realista:
+            args.append("--realista")
+        if cam or realista:
+            args += ["--camiones", _fmt(cam / 100.0)]
         return args
 
     def trazado(self) -> list[str]:

@@ -61,3 +61,26 @@ def test_color_rebasando():
     v.state = "REBASANDO"
     assert color_de(v) == C_REBASE
     a.pg.quit()
+
+
+def test_captura_realista_con_pendientes_y_limites(tmp_path):
+    from trafico import config as cfgmod
+
+    cfg = cfgmod.realista(SimConfig(length=6_000, mode="lleno", n_vehicles=25, warmup=20, n_probes=1,
+                                    relieve="montanoso", trazado="pocas"))
+    cfg = cfgmod.set_param(cfg, "limites", "2000:4000:80")
+    p = tmp_path / "r.png"
+    a = captura(cfg, str(p), frames=2, sim_segundos=300)
+    assert p.exists()
+    assert a.road.collisions == 0
+    assert any(v.kind == "camion" for v in a.road.vehicles + a.road.finished)
+
+
+def test_preset_realista():
+    from trafico import config as cfgmod
+
+    cfg = cfgmod.realista(SimConfig())
+    assert cfg.trucks.share == 0.10 and cfg.overtaking.t_lane_change == 3.0 and cfg.overtaking.convoy
+    assert cfg.reaction_time == 1.0 and cfg.drivers.share_aggressive == 0.15
+    sin = cfgmod.realista(cfgmod.set_param(SimConfig(), "overtaking", "none"))
+    assert sin.overtaking is None
