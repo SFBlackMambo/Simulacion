@@ -242,6 +242,7 @@ def run_simulation(
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
         trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False, seed=seed, kind=v.kind,
-                                  limit_factor=v.limit_factor, grades=v.grades)) for v in road.finished],
+                                  limit_factor=v.limit_factor, grades=v.grades),
+                     cfg.length if v.full_trip else 0.0) for v in road.finished],
         recorder=recorder,
     )

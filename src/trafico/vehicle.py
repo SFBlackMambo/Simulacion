@@ -66,6 +66,19 @@ class Vehicle:
     idm: object = None  # IDMParams propios (None: los de la carretera)
     grades: object = None  # GradeResponse propia (None: la de un auto)
     targets: list = field(default_factory=list)
+    # Medidas que solo se registran (no cambian la dinámica), ver docs/datos.md
+    t_hw25: float = 0.0  # tiempo con headway <= 2.5 s respecto al de delante (seguidor, HCM 7.ª ed.)
+    t_hw3: float = 0.0  # tiempo con headway < 3 s (PTSF del HCM 2010)
+    t_opposite: float = 0.0  # tiempo en el carril contrario
+    ttc_leader_min: float = float("inf")  # TTC mínimo con el de delante, s
+    ttc_opp_min: float = float("inf")  # TTC mínimo frente a frente con un contrario en su carril, s
+    conflicts_leader: int = 0  # episodios con TTC < 1.5 s con el de delante
+    conflicts_opp: int = 0  # episodios con TTC < 1.5 s frente a frente
+    m_hw: float = float("inf")  # medidas del paso actual (mínimo entre los carriles que ocupa)
+    m_ttcl: float = float("inf")
+    m_ttco: float = float("inf")
+    ttcl_prev: float = float("inf")
+    ttco_prev: float = float("inf")
 
     def __post_init__(self) -> None:
         if self.lane < 0:

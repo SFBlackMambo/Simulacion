@@ -54,3 +54,22 @@ sin la clave de la corrida.
 | `clase` | — | `auto` o `camion` |
 | `rebases_en_cadena` | — | Rebases empezados siguiendo a otro que ya rebasaba |
 | `conductor` | — | `prudente`, `normal` o `agresivo` |
+| `v_media_kmh` | km/h | Velocidad media del viaje (longitud / tiempo de viaje); vacío si no hizo el viaje completo |
+| `t_headway_2_5` | s | Tiempo con headway ≤ 2.5 s respecto al de delante (frente a frente de los dos, en tiempo). Es la definición de "seguidor" del HCM 7.ª ed. |
+| `t_headway_3` | s | Tiempo con headway < 3 s (definición del HCM 2010 para el PTSF) |
+| `pct_tiempo_siguiendo` | % | `100 · t_headway_3 / tiempo_viaje`: porcentaje del tiempo de viaje siguiendo a otro |
+| `t_carril_contrario` | s | Tiempo en el carril del otro sentido (rebasando) |
+| `ttc_min_lider` | s | Mínimo tiempo a colisión con el de delante (hueco / diferencia de velocidad, cuando se acerca). Vacío si nunca se acercó |
+| `ttc_min_contrario` | s | Mínimo tiempo a colisión frente a frente con un vehículo del otro sentido en su mismo carril (hueco / suma de velocidades). Para quien rebasa y para quien viene de frente. Vacío si nunca hubo |
+| `conflictos_lider` | — | Episodios con TTC < 1.5 s con el de delante (umbral de SSAM, Gettman y Head 2003) |
+| `conflictos_contrario` | — | Episodios con TTC < 1.5 s frente a frente |
+| `factor_limite` | × | Cuánto se pasa del límite de velocidad (1 = lo respeta; 1.2 = va 20 % arriba) |
+| `potencia_w_kg` | W/kg | Potencia específica en la rueda (autos 22; camiones según su relación peso/potencia) |
+| `lb_hp` | lb/hp | Relación peso/potencia del camión (solo camiones; redondeada al 0.5 W/kg) |
+
+Notas: el headway y el TTC se miden respecto al vehículo de delante en el carril que se ocupa (mientras rebasa,
+el de delante en el carril contrario). Estas medidas solo se registran: no cambian la simulación.
+
+`corridas.csv` resume además, para el tráfico de fondo con viaje completo: `pct_siguiendo_fondo` (media de
+`pct_tiempo_siguiendo`), `t_contrario_fondo` (s), y para todos los vehículos `conflictos_lider` y
+`conflictos_contrario` (totales de la corrida).

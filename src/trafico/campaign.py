@@ -29,7 +29,8 @@ CAMPOS_SONDA = ["indice", "t_entrada", "tiempo_viaje", "tiempo_libre", "retraso"
 CAMPOS_CORRIDA = ["colisiones", "vehiculos_emergencia", "n_fondo", "retraso_fondo", "retraso_fondo_mediana",
                   "rebases_fondo", "alcances_fondo", "veces_rebasado_fondo", "t_lento_fondo",
                   "rebases_sondas", "alcances_sondas", "rebases_en_cadena_fondo", "camiones_fondo",
-                  "retraso_camiones", "con_viajes"]
+                  "retraso_camiones", "pct_siguiendo_fondo", "t_contrario_fondo", "conflictos_lider",
+                  "conflictos_contrario", "con_viajes"]
 
 
 def parse_sweep(texto: str) -> tuple[str, list]:
@@ -80,6 +81,10 @@ def _resumir(res: RunResult, viajes: bool) -> dict:
         "rebases_en_cadena_fondo": _media(fondo, "rebases_en_cadena"),
         "camiones_fondo": sum(t["clase"] == "camion" for t in fondo),
         "retraso_camiones": _media([t for t in fondo if t["clase"] == "camion"], "retraso"),
+        "pct_siguiendo_fondo": _media(fondo, "pct_tiempo_siguiendo"),
+        "t_contrario_fondo": _media(fondo, "t_carril_contrario"),
+        "conflictos_lider": sum(t["conflictos_lider"] for t in res.trips),
+        "conflictos_contrario": sum(t["conflictos_contrario"] for t in res.trips),
     }
     probes = [{
         "indice": p.index, "t_entrada": round(p.t_entry, 2), "tiempo_viaje": round(p.travel_time, 3),

@@ -290,6 +290,25 @@ class Road:
                     a = min(a, accel_limit(veh.grades or AUTO_GRADES, veh.v, g))
                 a_seguir = a
                 a_frontal = self._head_on_brake(veh, opposite, math.inf) if opposite else math.inf
+                # medidas (solo se registran): headway, TTC con el de delante y frente a frente
+                if leader is not None:
+                    if veh.v > 0.1:
+                        hw = (leader.x - veh.x) / veh.v
+                        if hw < veh.m_hw:
+                            veh.m_hw = hw
+                    dv = veh.v - leader.v
+                    if dv > 0:
+                        ttc = (leader.rear - veh.x) / dv
+                        if ttc < veh.m_ttcl:
+                            veh.m_ttcl = ttc
+                if opposite:
+                    for other in opposite:  # ordenados: el primero que no se cruzó es el más cercano
+                        gap = self.length - other.x - veh.x
+                        if gap > 0:
+                            ttc = gap / max(veh.v + other.v, 0.1)
+                            if ttc < veh.m_ttco:
+                                veh.m_ttco = ttc
+                            break
                 a = min(a_seguir, a_frontal)
                 # ¿lo frena alguien? (líder a menos de 4 s o de 50 m)
                 cerca = leader is not None and leader.rear - veh.x < max(50.0, 4.0 * veh.v)
@@ -326,6 +345,7 @@ class Road:
             elif veh.slowed and veh.v > veh.v_des - 0.3:
                 veh.slowed = False
             veh.t_stuck = veh.t_stuck + dt if veh.slowed else 0.0
+            _medir(veh, dt)
         self.t += dt
         self.n_steps += 1
         self._count_collisions(groups)
@@ -388,6 +408,33 @@ class Road:
         """Corre `seconds` segundos simulados."""
         for _ in range(math.ceil(seconds / self.dt - 1e-9)):
             self.step()
+
+
+TTC_CONFLICTO = 1.5  # s, umbral de conflicto (SSAM, Gettman y Head 2003)
+
+
+def _medir(veh: Vehicle, dt: float) -> None:
+    """Acumula las medidas del paso (no cambian la dinámica) y las reinicia."""
+    hw = veh.m_hw
+    if hw <= 2.5:
+        veh.t_hw25 += dt
+    if hw < 3.0:
+        veh.t_hw3 += dt
+    if veh.lane != veh.home_lane:
+        veh.t_opposite += dt
+    t = veh.m_ttcl
+    if t < TTC_CONFLICTO <= veh.ttcl_prev:  # empieza un episodio
+        veh.conflicts_leader += 1
+    veh.ttcl_prev = t
+    if t < veh.ttc_leader_min:
+        veh.ttc_leader_min = t
+    t = veh.m_ttco
+    if t < TTC_CONFLICTO <= veh.ttco_prev:
+        veh.conflicts_opp += 1
+    veh.ttco_prev = t
+    if t < veh.ttc_opp_min:
+        veh.ttc_opp_min = t
+    veh.m_hw = veh.m_ttcl = veh.m_ttco = math.inf
 
 
 def _fusionar(accels):

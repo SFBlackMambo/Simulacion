@@ -6,8 +6,10 @@ resultados.
 """
 
 import csv
+import math
 from pathlib import Path
 
+from .slopes import AUTO_GRADES
 from .vehicle import Vehicle, ms_a_kmh
 
 # Tipos de evento
@@ -19,14 +21,18 @@ CAMPOS_VIAJE = [
     "id", "sentido", "v0_kmh", "sonda", "viaje_completo", "t_entrada", "t_salida",
     "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "abortos", "veces_rebasado",
     "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase", "rebases_en_cadena", "conductor",
+    "v_media_kmh", "t_headway_2_5", "t_headway_3", "pct_tiempo_siguiendo", "t_carril_contrario",
+    "ttc_min_lider", "ttc_min_contrario", "conflictos_lider", "conflictos_contrario",
+    "factor_limite", "potencia_w_kg", "lb_hp",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n", "en_cadena"]
 CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh", "clase"]
 
 
-def viaje(veh: Vehicle, free_time: float) -> dict:
-    """Resumen del viaje de un vehículo que ya salió."""
+def viaje(veh: Vehicle, free_time: float, length: float = 0.0) -> dict:
+    """Resumen del viaje de un vehículo que ya salió (`length`: lo que recorrió, m)."""
     tt = veh.t_exit - veh.t_entry
+    pot = (veh.grades or AUTO_GRADES).power_w_kg
     return {
         "id": veh.id,
         "sentido": veh.direction,
@@ -48,7 +54,24 @@ def viaje(veh: Vehicle, free_time: float) -> dict:
         "clase": veh.kind,
         "rebases_en_cadena": veh.convoy_overtakes,
         "conductor": veh.driver,
+        "v_media_kmh": round(ms_a_kmh(length / tt), 3) if length and tt > 0 else "",
+        "t_headway_2_5": round(veh.t_hw25, 2),
+        "t_headway_3": round(veh.t_hw3, 2),
+        "pct_tiempo_siguiendo": round(100.0 * veh.t_hw3 / tt, 2) if tt > 0 else "",
+        "t_carril_contrario": round(veh.t_opposite, 2),
+        "ttc_min_lider": _num(veh.ttc_leader_min),
+        "ttc_min_contrario": _num(veh.ttc_opp_min),
+        "conflictos_lider": veh.conflicts_leader,
+        "conflictos_contrario": veh.conflicts_opp,
+        "factor_limite": round(veh.limit_factor, 4),
+        "potencia_w_kg": round(pot, 2),
+        "lb_hp": round(1644.0 * 0.87 / pot, 1) if veh.kind == "camion" else "",
     }
+
+
+def _num(x: float):
+    """Número redondeado, o vacío si no hubo (infinito)."""
+    return round(x, 3) if math.isfinite(x) else ""
 
 
 class Recorder:
