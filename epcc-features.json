@@ -777,8 +777,349 @@
       "passes": true,
       "status": "verified",
       "verifiedAt": "2026-11-22T21:31:10-07:00"
+    },
+    {
+      "id": "INFRA-002",
+      "name": "Prueba automática de la huella",
+      "description": "Corridas cortas simple y realista comparadas con valores guardados",
+      "priority": "P0",
+      "implementationOrder": 28,
+      "dependencies": [],
+      "estimatedHours": 2,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Falla si cambia cualquier resultado del modelo simple con todo apagado",
+        "Cubre también el preset realista",
+        "Corre en < 30 s"
+      ],
+      "subtasks": [
+        {
+          "name": "Prueba automática de la huella",
+          "status": "pending",
+          "estimatedHours": 2
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F027",
+      "name": "Viajes siempre en campañas",
+      "description": "viajes.csv por defecto en las campañas, --sin-viajes, añadir al reanudar, diccionario de columnas",
+      "priority": "P0",
+      "implementationOrder": 29,
+      "dependencies": [
+        "INFRA-002"
+      ],
+      "estimatedHours": 2.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Una campaña sin opciones guarda viajes.csv",
+        "--sin-viajes no lo guarda",
+        "Reanudar una campaña vieja no da error y guarda los viajes de las corridas nuevas",
+        "docs/datos.md describe cada columna con unidades"
+      ],
+      "subtasks": [
+        {
+          "name": "Viajes siempre en campañas",
+          "status": "pending",
+          "estimatedHours": 2.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F028",
+      "name": "Columnas nuevas por viaje",
+      "description": "t con headway <=2.5 s y <3 s, t en carril contrario, TTC mínimo con contrario y líder, sustos, lb/hp, factor de límite, velocidad media espacial",
+      "priority": "P0",
+      "implementationOrder": 30,
+      "dependencies": [
+        "F027"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Las columnas aparecen en la corrida y en las campañas",
+        "Escenarios a mano dan los valores esperados",
+        "La huella no cambia"
+      ],
+      "subtasks": [
+        {
+          "name": "Columnas nuevas por viaje",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F029",
+      "name": "Trayectorias opcionales",
+      "description": "--trayectorias S tipo NGSIM, un CSV por corrida, opción de solo sondas",
+      "priority": "P1",
+      "implementationOrder": 31,
+      "dependencies": [
+        "F027"
+      ],
+      "estimatedHours": 2,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Apagado por defecto",
+        "Con S=1 hay una fila por vehículo y segundo con líder, seguidor y headway",
+        "La huella no cambia"
+      ],
+      "subtasks": [
+        {
+          "name": "Trayectorias opcionales",
+          "status": "pending",
+          "estimatedHours": 2
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F030",
+      "name": "Combustible y CO2 por viaje",
+      "description": "VSP/MOVES para autos y camiones, litros y kg de CO2 por viaje",
+      "priority": "P0",
+      "implementationOrder": 32,
+      "dependencies": [
+        "F028"
+      ],
+      "estimatedHours": 3.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Auto en llano a 100/120/130 km/h dentro de ±15 % de las referencias",
+        "Los camiones usan sus propios coeficientes",
+        "Columnas litros y co2_kg en viajes.csv"
+      ],
+      "subtasks": [
+        {
+          "name": "Combustible y CO2 por viaje",
+          "status": "pending",
+          "estimatedHours": 3.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F031",
+      "name": "Riesgo y balance en dinero",
+      "description": "Nilsson/Elvik, Kloeden y medidas sustitutas; costos.py con precios en MXN que se pueden cambiar",
+      "priority": "P0",
+      "implementationOrder": 33,
+      "dependencies": [
+        "F028",
+        "F030"
+      ],
+      "estimatedHours": 3.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Las tres medidas de riesgo se reportan por separado",
+        "Cambiar precios no exige volver a simular",
+        "Valores con su fuente o marcados como supuesto"
+      ],
+      "subtasks": [
+        {
+          "name": "Riesgo y balance en dinero",
+          "status": "pending",
+          "estimatedHours": 3.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F032",
+      "name": "Aceptación de hueco logit (Farah)",
+      "description": "Rebase probabilístico con heterogeneidad entre conductores, sin piso de seguridad, con abortos; gap_floor opcional",
+      "priority": "P1",
+      "implementationOrder": 34,
+      "dependencies": [
+        "INFRA-002"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Apagado por defecto (huella igual)",
+        "Generador aleatorio propio",
+        "Choques por millón de veh-km reportados",
+        "Con gap_floor=1, 0 colisiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Aceptación de hueco logit (Farah)",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F033",
+      "name": "Asomarse para ver",
+      "description": "Visión geométrica detrás del vehículo de delante con desplazamiento lateral",
+      "priority": "P1",
+      "implementationOrder": 35,
+      "dependencies": [
+        "INFRA-002"
+      ],
+      "estimatedHours": 3.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Modo nuevo de blocked_view, el anterior se conserva",
+        "Ve más detrás de un auto que detrás de un camión, y más con más distancia",
+        "Estrés con 0 colisiones"
+      ],
+      "subtasks": [
+        {
+          "name": "Asomarse para ver",
+          "status": "pending",
+          "estimatedHours": 3.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F034",
+      "name": "Carril de rebase 2+1 (parte 1)",
+      "description": "Tramos con segundo carril en un sentido, cambio de carril y regla de ir por la derecha",
+      "priority": "P2",
+      "implementationOrder": 36,
+      "dependencies": [
+        "F033"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Sin tramos definidos la huella no cambia",
+        "Los rápidos usan el carril extra y rebasan sin invadir el contrario"
+      ],
+      "subtasks": [
+        {
+          "name": "Carril de rebase 2+1 (parte 1)",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F035",
+      "name": "Carril de rebase 2+1 (parte 2)",
+      "description": "Incorporación al final, animación, menú y estrés",
+      "priority": "P2",
+      "implementationOrder": 37,
+      "dependencies": [
+        "F034"
+      ],
+      "estimatedHours": 4,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Incorporación sin choques en el estrés",
+        "Se ve en la animación",
+        "Se configura desde el menú y con --param"
+      ],
+      "subtasks": [
+        {
+          "name": "Carril de rebase 2+1 (parte 2)",
+          "status": "pending",
+          "estimatedHours": 4
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F036",
+      "name": "Barrido 90-150 y la mejor velocidad",
+      "description": "Curva tiempo-velocidad, ganancia contra 100 km/h y por cada +10, costo por velocidad y óptimo según precios",
+      "priority": "P0",
+      "implementationOrder": 38,
+      "dependencies": [
+        "F031"
+      ],
+      "estimatedHours": 3.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "graficar --mejor produce tablas y gráficas",
+        "Óptimo reportado por escenario de precios (bajo/medio/alto)",
+        "IC 95 % en todas las diferencias"
+      ],
+      "subtasks": [
+        {
+          "name": "Barrido 90-150 y la mejor velocidad",
+          "status": "pending",
+          "estimatedHours": 3.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F037",
+      "name": "Volver a correr las campañas",
+      "description": "Fases 1-3 más una de B1-B3 con sondas de 90 a 150, viajes y --rapido",
+      "priority": "P0",
+      "implementationOrder": 39,
+      "dependencies": [
+        "F032",
+        "F033",
+        "F034",
+        "F035",
+        "F036"
+      ],
+      "estimatedHours": 3,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "Todas las campañas con viajes.csv",
+        "Colisiones reportadas por campaña"
+      ],
+      "subtasks": [
+        {
+          "name": "Volver a correr las campañas",
+          "status": "pending",
+          "estimatedHours": 3
+        }
+      ],
+      "passes": false,
+      "status": "pending"
+    },
+    {
+      "id": "F038",
+      "name": "README con el enfoque de la mejor velocidad",
+      "description": "Cuál llega antes, por cuánto y a qué costo; 120 contra 130 pasa a un anexo",
+      "priority": "P0",
+      "implementationOrder": 40,
+      "dependencies": [
+        "F037"
+      ],
+      "estimatedHours": 3.5,
+      "planReference": "EPCC_PLAN.md#plan-fase-4-datos-de-viajes-rebase-calibrado-y-la-mejor-velocidad",
+      "acceptanceCriteria": [
+        "El README responde la pregunta nueva con datos",
+        "Supuestos y fuentes sin verificar señalados"
+      ],
+      "subtasks": [
+        {
+          "name": "README con el enfoque de la mejor velocidad",
+          "status": "pending",
+          "estimatedHours": 3.5
+        }
+      ],
+      "passes": false,
+      "status": "pending"
     }
   ],
   "_phase2ApprovedAt": "2026-11-22",
-  "_phase3ApprovedAt": "2026-11-22"
+  "_phase3ApprovedAt": "2026-11-22",
+  "_phase4ApprovedAt": "2026-11-22"
 }

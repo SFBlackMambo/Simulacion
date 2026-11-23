@@ -162,3 +162,75 @@ F018 camiones (4h), F019 cambio de carril gradual (4h, riesgo A), F020 rebase en
 | Choques al combinar cambio lento, cadena y reacción | Escenarios por feature; 0 colisiones en todas las campañas |
 | Cambiar resultados previos sin querer | Cada feature apagada = resultados idénticos bit a bit (prueba de regresión) |
 | Rendimiento con parámetros por vehículo | Medir; mantener O(n) por paso |
+
+---
+
+# Plan fase 4: datos de viajes, rebase calibrado y la mejor velocidad
+
+**Creado**: 2026-11-22 | **Esfuerzo**: ~45h | **Complejidad**: Compleja | **Estado**: APROBADO (2026-11-22)
+
+## 1. Objetivo
+**Meta**: responder qué velocidad deseada conviene más en una carretera de dos carriles, poniendo en la balanza el tiempo que se gana contra el combustible, el CO2 y el riesgo. Además, guardar los datos completos de cada viaje para que el usuario los analice por su cuenta.
+**Éxito**:
+- Cada campaña deja `viajes.csv` (todos los vehículos de todas las corridas) junto con un diccionario de columnas.
+- Para cada escenario, el README muestra la curva tiempo–velocidad (90 a 150 km/h), cuál llega antes y por cuánto, y la velocidad con el menor costo total según precios que se pueden cambiar.
+- Con todo lo nuevo apagado, los resultados son idénticos bit a bit (prueba automática). Sin B1 hay 0 colisiones en las campañas; con B1 las colisiones se miden y se reportan.
+
+## 2. Enfoque y decisiones
+- **Se mantienen los patrones de la fase 3**: todo apagado por defecto, alias en `config.ALIAS`, un generador aleatorio propio para cada rasgo nuevo y paridad entre CPython y PyPy (sin dependencias nuevas, solo numpy).
+- **Las medidas nuevas solo leen el estado.** Se acumulan por vehículo en `Road.step` sin tocar la dinámica, y se guardan como columnas de `viajes.csv`. Así encenderlas no cambia ninguna trayectoria.
+- **Los costos se calculan después de simular.** La simulación guarda litros, CO2, tiempo y medidas de riesgo. Los precios (valor del tiempo, combustible, costo de un accidente, CO2) se aplican en `graficar` o `analysis`, en un módulo `costos.py` con valores que se pueden cambiar. Cambiar un precio no obliga a volver a simular.
+- **Riesgo**: se reportan tres medidas por separado y ninguna se mezcla con otra:
+  1. modelo potencia de Nilsson/Elvik, con la velocidad media del flujo;
+  2. curva individual de Kloeden, según cuánto se aleja del flujo;
+  3. medidas del propio simulador: TTC mínimo, sustos y margen al regresar.
+- **Combustible**: VSP de Jiménez-Palacios con tasas por intervalo al estilo MOVES, con coeficientes distintos para autos y camiones. Se revisa contra consumos de referencia a velocidad constante.
+- **Rebase calibrado (B1)**: un modelo logit de aceptación de hueco con un término aleatorio por conductor (Farah). **Decisión del usuario: sin piso de seguridad.** El logit decide libremente y la seguridad depende de abortar el rebase (`_threat`). Puede haber choques: se cuentan, se reportan como resultado (choques por cada millón de veh-km, por velocidad deseada) y forman parte del riesgo "del simulador". Hay que definir qué pasa después de un choque (hoy solo se cuentan y los vehículos siguen).
+- **Asomarse (B2)**: una línea de visión geométrica (ancho del vehículo de delante, distancia y desplazamiento lateral) reemplaza la regla fija de 3 s / 500 m, como un modo nuevo de `blocked_view`.
+- **Carril de rebase / 2+1 (B3)**: tramos donde un sentido tiene un segundo carril, con la regla de ir por la derecha y una incorporación al final. Es lo más arriesgado (toca grupos de carriles, entrada y salida y la animación), así que va al final del comportamiento y partido en dos.
+- **Preset**: B1 y B2 entran en `PRESET_REALISTA` solo después de validarlos. El modelo simple queda bit a bit igual; el realista cambia, y se vuelven a correr sus campañas de todos modos.
+- **Datos**: CSV. Trayectorias opcionales, un archivo por corrida en `trayectorias/`, a 1 s (para una corrida de 20 km son ~0.5 M filas).
+
+## 3. Tareas
+**Base** (~2h)
+- INFRA-002 Prueba automática de la huella: corridas cortas, una del modelo simple y una del realista, comparadas con valores guardados (2h) | Deps: ninguna | Riesgo: B
+
+**Datos de viajes** (~10.5h)
+- F027 Viajes siempre en las campañas: activados por defecto, `--sin-viajes` para apagarlos, se pueden añadir al reanudar, y `docs/datos.md` con el diccionario de columnas (2.5h) | Deps: INFRA-002 | B
+- F028 Columnas nuevas por viaje: t con headway ≤ 2.5 s y < 3 s, t en el carril contrario, TTC mínimo con el contrario y con el líder, número de sustos, lb/hp, factor de límite, velocidad media espacial (3h) | Deps: F027 | M (no debe tocar la dinámica)
+- F029 Trayectorias opcionales tipo NGSIM: `--trayectorias S`, en la corrida única y en las campañas, con la opción de guardar solo las sondas (2h) | Deps: F027 | B
+- F030 Combustible y CO2 por viaje con VSP, para autos y camiones, y revisión contra referencias (3.5h) | Deps: F028 | M (coeficientes)
+
+**Costo y riesgo** (~3.5h)
+- F031 Riesgo (Nilsson, Kloeden, sustitutos) y `costos.py` con el balance en dinero y precios que se pueden cambiar (3.5h) | Deps: F028, F030 | M (valores de referencia)
+
+**Comportamiento de rebase** (~15.5h)
+- F032 Aceptación de hueco logit (Farah) con heterogeneidad, sobre el piso de seguridad (4h) | Deps: INFRA-002 | A (coeficientes sin verificar)
+- F033 Asomarse: visión geométrica detrás del vehículo de delante (3.5h) | Deps: INFRA-002 | M
+- F034 Carril de rebase / 2+1, parte 1: geometría, carriles extra y cambio de carril (4h) | Deps: F033 | A
+- F035 Carril de rebase / 2+1, parte 2: incorporación al final, animación, menú y estrés sin choques (4h) | Deps: F034 | A
+
+**La mejor velocidad** (~10h)
+- F036 Barrido de sondas de 90 a 150 y análisis: curva tiempo–velocidad, ganancia contra 100 km/h y por cada +10, costo por velocidad y velocidad óptima según los precios (`graficar --mejor`) (3.5h) | Deps: F031 | M
+- F037 Volver a correr las campañas de las fases 1 a 3 (más una de B1–B3) con 90 a 150, viajes guardados y `--rapido` (3h, casi todo es tiempo de cómputo) | Deps: F032–F036 | M (tiempo)
+- F038 README con el nuevo enfoque: la mejor velocidad, por cuánto llega antes y a qué costo. Los resultados 120 contra 130 pasan a un anexo (3.5h) | Deps: F037 | B
+
+**Total**: ~41.5h + ~3h de margen ≈ 45h
+
+## 4. Calidad
+- La prueba de la huella corre en cada feature. Las medidas nuevas tienen pruebas con escenarios armados a mano: por ejemplo, un vehículo a velocidad constante consume lo de referencia, y un rebase con un contrario a una distancia conocida da el TTC esperado.
+- B2–B3: estrés en montaña, con camiones y con todo activado, con 0 colisiones. B1: se reportan choques, sustos y abortos; la opción de piso (`gap_floor=1`) debe dar 0 colisiones.
+- Combustible: un auto a 100/120/130 km/h en llano queda dentro de ±15 % de las referencias publicadas.
+
+## 5. Riesgos
+| Riesgo | Impacto | Mitigación |
+|---|---|---|
+| Coeficientes de la literatura sin verificar (Farah, Elvik, VSP) | A | Verificar en la fuente al implementar; si no se puede, documentar el valor usado como supuesto y dejarlo como parámetro |
+| El logit acepta huecos peligrosos y hay choques (el usuario lo aceptó) | A | Abortar mejor; reportar los choques por veh-km; se puede comparar con y sin piso usando `overtaking.gap_floor` |
+| El 2+1 rompe supuestos de dos carriles físicos (0/1) en todo el código | A | Va al final, partido en dos; se puede dejar fuera sin afectar lo demás |
+| Volver a correr las campañas tarda mucho (×3.5) | M | `--rapido` (PyPy), campañas que se reanudan, primero la de la fase 1 |
+| Las columnas nuevas cambian la dinámica sin querer | M | Solo leen el estado; la huella lo prueba |
+| El balance en dinero depende de los precios | M | Presentarlo como escenarios (bajo/medio/alto) y no como una sola respuesta |
+
+**Supuestos**: el usuario está en México (lo confirmó: MXN). El dinero va en MXN, con valores de referencia de IMT/SCT si se encuentran y, si no, convertidos desde USDOT/HEATCO y marcados así.
+**Fuera de alcance**: medidas del HCM con detectores virtuales (FD, PF, LOS), validación contra las curvas del HCM y Parquet.

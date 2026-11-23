@@ -232,3 +232,21 @@
 - Correcciones de seguridad: la predicción del rebase de un camión usa su física de motor; un camión solo rebasa si lo que puede sostener supera al de delante.
 - Velocidad: tablas por vehículo, descarte temprano por tráfico de frente (cota segura) y `--rapido` con PyPy (scripts/instalar_pypy.sh). Mismos resultados bit a bit (huellas simple y realista). 20 km realista en montaña: 56.6 s → 20 s (CPython) → 5 s (PyPy).
 - Campañas de la fase 3 recalculadas: 0 colisiones; montaña con 10 % camiones: retraso medio 178 s (antes 298 con el error).
+
+---
+
+## Session: EXPLORE - 2026-11-22
+- Objetivo: todo el código (sin argumentos), alcance medio. Reemplaza el EPCC_EXPLORE.md del 2026-11-21 (repo vacío).
+- Hallazgos: 27 features verificadas; 168 tests pasan (91 s); la regresión "huella bit a bit" no está automatizada; sin CLAUDE.md, linter ni CI; directorio vacío `./2` en la raíz.
+- Archivos revisados: ~20 en src/, tests/, scripts/ y docs de EPCC.
+- Siguiente: el usuario define el trabajo nuevo; candidato recomendado: prueba automática de la huella.
+- Git: 0accc59, master, limpio.
+- Anexo: estado de los datos de viajes y propuestas tomadas de la literatura (agente de búsqueda; las citas no se verificaron en línea). El usuario eligió D1, D2 y D7 (datos de viajes) y B1, B2 y B3 (comportamiento de rebase), con CSV. Siguiente: /epcc-plan.
+- README con nuevo enfoque: la mejor velocidad deseada pesando tiempo contra riesgo y costo. Se suman D5 y D6. Las campañas se vuelven a correr con sondas de 90 a 150 km/h, de 10 en 10, y con los viajes guardados.
+
+---
+
+## Plan fase 4 aprobado - 2026-11-22
+- 13 features (INFRA-002, F027-F038), ~45 h. Orden: huella → datos de viajes → costo y riesgo → rebase (logit de Farah, asomarse, 2+1) → barrido 90-150, volver a correr las campañas y README.
+- Decisiones: CSV; dinero en MXN; el logit de Farah va sin piso de seguridad (puede haber choques, se reportan; `gap_floor` es opcional); riesgo con tres medidas por separado; precios aplicados después de simular.
+- Siguiente: `/epcc-code INFRA-002`.
