@@ -111,3 +111,9 @@
 - animation.py + `trafico animar`: ventana pygame-ce (modo oscuro) con mapa de la carretera completa, tramo ampliado con los dos carriles, panel de la sonda en vivo y tabla de sondas que ya llegaron. Colores por estado: libre (azul), rebasando (aqua), sonda (naranja, con contorno y etiqueta), atrapado (gris neutro). Los 3 tonos pasan el validador en todas las parejas; 4 tonos fallaban (amarillo/naranja).
 - Controles: pausa, ×1..×100, zoom, mover, seguir sonda, clic en el mapa, reiniciar, pantalla completa. `--captura` guarda un PNG sin abrir ventana.
 - Verificado: 78 tests (SDL dummy); ×100 usa <10 % de un núcleo; dibujo ~1 ms por cuadro.
+
+---
+
+## F014 - 2026-11-22
+- menu.py: `trafico` (sin argumentos) o `trafico menu` abre un menú: corrida única, animación, campaña (elige parámetros a barrer y valores) o graficar. Enter acepta los valores por defecto; valida entradas; al final muestra el comando equivalente para repetirlo y lo ejecuta.
+- Verificado: 83 tests (menú con entradas simuladas, incluida una corrida real).

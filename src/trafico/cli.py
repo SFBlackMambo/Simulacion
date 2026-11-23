@@ -5,7 +5,7 @@ Comandos:
     campana   muchas simulaciones barriendo parámetros (datos para analizar)
     graficar  gráficas de una campaña ya corrida
     animar    animación en vivo de una corrida (requiere pygame-ce)
-    menu      menú interactivo
+    menu      menú interactivo (también si se llama sin comando)
 """
 
 import argparse
@@ -166,12 +166,20 @@ def cmd_animar(argv=None):
     animar(cfg, args.vel_sonda, args.semilla, fullscreen=args.pantalla_completa, **kw)
 
 
-COMANDOS = {"corrida": cmd_corrida, "animar": cmd_animar, "campana": cmd_campana, "graficar": cmd_graficar}
+def cmd_menu(argv=None):
+    from .menu import cmd_menu as _menu
+
+    _menu(argv)
+
+
+COMANDOS = {"menu": cmd_menu, "corrida": cmd_corrida, "animar": cmd_animar, "campana": cmd_campana, "graficar": cmd_graficar}
 
 
 def main(argv=None) -> None:
     argv = sys.argv[1:] if argv is None else argv
-    if not argv or argv[0] in ("-h", "--help"):
+    if not argv:
+        argv = ["menu"]
+    if argv[0] in ("-h", "--help"):
         print(__doc__)
         return
     cmd, resto = argv[0], argv[1:]

@@ -450,12 +450,13 @@
       "subtasks": [
         {
           "name": "Menú interactivo",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 2
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:20:15-07:00"
     },
     {
       "id": "F015",
