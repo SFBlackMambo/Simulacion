@@ -423,12 +423,13 @@
       "subtasks": [
         {
           "name": "Animación",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 4
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:17:48-07:00"
     },
     {
       "id": "F014",

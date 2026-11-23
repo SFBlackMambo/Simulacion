@@ -104,3 +104,10 @@
 - campaign.py: `trafico campana --barrer nombre=v1,v2 ...` (producto cartesiano × velocidades × semillas), en paralelo, guarda campana.json, corridas.csv, sondas.csv y opcionalmente viajes.csv. Reanudable (limpia filas de corridas a medias) y ampliable con más semillas o velocidades.
 - analysis.py: `trafico graficar carpeta [--x] [--serie] [--comparar]`: resúmenes con IC95, ganancia emparejada (y % de la ideal, calculada con los tiempos libres medidos) y gráficas por sondas y tráfico de fondo. Parámetros extra separan archivos.
 - Verificado: 75 tests; campaña de prueba (3 flujos × 2 longitudes) reproduce las ganancias del README (32/17/7 s a 20 km).
+
+---
+
+## F013 - 2026-11-22
+- animation.py + `trafico animar`: ventana pygame-ce (modo oscuro) con mapa de la carretera completa, tramo ampliado con los dos carriles, panel de la sonda en vivo y tabla de sondas que ya llegaron. Colores por estado: libre (azul), rebasando (aqua), sonda (naranja, con contorno y etiqueta), atrapado (gris neutro). Los 3 tonos pasan el validador en todas las parejas; 4 tonos fallaban (amarillo/naranja).
+- Controles: pausa, ×1..×100, zoom, mover, seguir sonda, clic en el mapa, reiniciar, pantalla completa. `--captura` guarda un PNG sin abrir ventana.
+- Verificado: 78 tests (SDL dummy); ×100 usa <10 % de un núcleo; dibujo ~1 ms por cuadro.

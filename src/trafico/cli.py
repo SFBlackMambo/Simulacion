@@ -133,7 +133,40 @@ def cmd_graficar(argv=None):
     return rutas
 
 
-COMANDOS = {"corrida": cmd_corrida, "campana": cmd_campana, "graficar": cmd_graficar}
+DEF_ANIMAR = SimConfig(mode="lleno", n_vehicles=70, warmup=30, n_probes=5, probe_spacing=150)
+
+
+def cmd_animar(argv=None):
+    try:
+        import pygame  # noqa: F401
+    except ImportError:
+        print('Falta pygame-ce. Instálalo con:  pip install -e ".[anim]"')
+        sys.exit(1)
+    from .animation import animar, captura
+
+    ap = argparse.ArgumentParser(prog="trafico animar", description="Animación en vivo de una corrida.")
+    add_config_args(ap, DEF_ANIMAR)
+    ap.add_argument("--vel-sonda", type=float, default=130)
+    ap.add_argument("--semilla", type=int, default=1)
+    ap.add_argument("--pantalla-completa", action="store_true")
+    ap.add_argument("--ancho", type=int, default=1600)
+    ap.add_argument("--alto", type=int, default=900)
+    ap.add_argument("--velocidad", type=int, default=5, help="segundos simulados por segundo real")
+    ap.add_argument("--ventana-km", type=float, default=0.8, help="km visibles en el tramo ampliado")
+    ap.add_argument("--captura", default=None, help="no abre ventana: guarda una imagen PNG y sale")
+    ap.add_argument("--captura-en", type=float, default=600, help="s simulados antes de la captura")
+    args = ap.parse_args(argv)
+    cfg = config_from_args(args)
+    kw = dict(size=(args.ancho, args.alto), velocidad=args.velocidad, ventana_km=args.ventana_km)
+    if args.captura:
+        captura(cfg, args.captura, frames=2, probe_v0_kmh=args.vel_sonda, seed=args.semilla,
+                sim_segundos=args.captura_en, **kw)
+        print(f"Captura en {args.captura}")
+        return
+    animar(cfg, args.vel_sonda, args.semilla, fullscreen=args.pantalla_completa, **kw)
+
+
+COMANDOS = {"corrida": cmd_corrida, "animar": cmd_animar, "campana": cmd_campana, "graficar": cmd_graficar}
 
 
 def main(argv=None) -> None:
