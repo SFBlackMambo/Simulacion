@@ -97,3 +97,10 @@
 - CLI `trafico corrida` (también `python -m trafico corrida`): una simulación con viajes.csv, eventos.csv, fotos.csv, config.json, resumen.json y 5 gráficas (espacio-tiempo, histograma de retraso, retraso vs v0, pelotones, rebases por km).
 - config.py: guardar/leer SimConfig en JSON y cambiar parámetros por nombre (`idm.T`, `overtaking.t_guard`, alias en español).
 - Verificado: 69 tests; gráficas revisadas visualmente (modos flujo y lleno). 20 km a 200 veh/h tarda ~3 s.
+
+---
+
+## F012 - 2026-11-22
+- campaign.py: `trafico campana --barrer nombre=v1,v2 ...` (producto cartesiano × velocidades × semillas), en paralelo, guarda campana.json, corridas.csv, sondas.csv y opcionalmente viajes.csv. Reanudable (limpia filas de corridas a medias) y ampliable con más semillas o velocidades.
+- analysis.py: `trafico graficar carpeta [--x] [--serie] [--comparar]`: resúmenes con IC95, ganancia emparejada (y % de la ideal, calculada con los tiempos libres medidos) y gráficas por sondas y tráfico de fondo. Parámetros extra separan archivos.
+- Verificado: 75 tests; campaña de prueba (3 flujos × 2 longitudes) reproduce las ganancias del README (32/17/7 s a 20 km).

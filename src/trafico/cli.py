@@ -82,7 +82,58 @@ def cmd_corrida(argv=None) -> dict:
     return r
 
 
-COMANDOS = {"corrida": cmd_corrida}
+DEF_CAMPANA = SimConfig(n_probes=20)
+
+
+def cmd_campana(argv=None):
+    from .analysis import plot_campaign
+    from .campaign import parse_sweep, run_campaign
+
+    ap = argparse.ArgumentParser(
+        prog="trafico campana",
+        description="Muchas simulaciones barriendo parámetros. Se puede reanudar con el mismo comando.",
+        epilog="Ejemplo: trafico campana --barrer flujo=100,200,300 --barrer longitud=10000,20000 "
+               "--velocidades 120 130 --semillas 8 --nucleos 8 --salida results/camp1",
+    )
+    add_config_args(ap, DEF_CAMPANA)
+    ap.add_argument("--barrer", action="append", default=[], metavar="NOMBRE=V1,V2,...",
+                    help="parámetro a barrer (repetible: se combinan todos)")
+    ap.add_argument("--velocidades", type=float, nargs="+", default=[120, 130], help="velocidades de sonda, km/h")
+    ap.add_argument("--semillas", type=int, default=8, help="réplicas por combinación")
+    ap.add_argument("--nucleos", type=int, default=1, help="procesos en paralelo")
+    ap.add_argument("--viajes", action="store_true", help="guardar también el viaje de cada vehículo")
+    ap.add_argument("--sin-graficas", action="store_true")
+    ap.add_argument("--salida", required=True, help="carpeta de la campaña")
+    args = ap.parse_args(argv)
+    base = config_from_args(args)
+    sweeps = [parse_sweep(b) for b in args.barrer]
+    out = run_campaign(base, sweeps, args.velocidades, list(range(1, args.semillas + 1)), args.salida,
+                       workers=args.nucleos, guardar_viajes=args.viajes)
+    if sweeps and not args.sin_graficas:
+        rutas = plot_campaign(out)
+        print(f"Gráficas y tablas en {rutas[0].parent}/")
+    print(f"Datos en {out}/")
+    return out
+
+
+def cmd_graficar(argv=None):
+    from .analysis import plot_campaign
+
+    ap = argparse.ArgumentParser(prog="trafico graficar", description="Gráficas de una campaña ya corrida.")
+    ap.add_argument("carpeta")
+    ap.add_argument("--x", default=None, help="parámetro del eje x (por defecto el primero barrido)")
+    ap.add_argument("--serie", default=None, help="parámetro que separa las líneas (por defecto el segundo)")
+    ap.add_argument("--comparar", type=float, nargs=2, default=None, metavar=("LENTA", "RAPIDA"))
+    ap.add_argument("--salida", default=None)
+    args = ap.parse_args(argv)
+    nombre = cfgmod.nombre_real
+    rutas = plot_campaign(args.carpeta, nombre(args.x) if args.x else None,
+                          nombre(args.serie) if args.serie else None, args.comparar, args.salida)
+    print(f"{len(rutas)} archivos en {rutas[0].parent}/")
+    return rutas
+
+
+COMANDOS = {"corrida": cmd_corrida, "campana": cmd_campana, "graficar": cmd_graficar}
 
 
 def main(argv=None) -> None:
