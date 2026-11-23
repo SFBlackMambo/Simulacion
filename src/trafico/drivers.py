@@ -39,8 +39,8 @@ class DriverModel:
     def assign(self, veh, rng: np.random.Generator) -> None:
         """Sortea los rasgos de un conductor (siempre el mismo número de sorteos)."""
         u = rng.random(4)
-        veh.limit_factor = 1.0 if u[0] < self.limit_compliance else 1.0 + (
-            self.excess_min + (self.excess_max - self.excess_min) * u[1])
+        veh.limit_factor = 1.0 if u[0] < self.limit_compliance else round(1.0 + (
+            self.excess_min + (self.excess_max - self.excess_min) * u[1]), 2)  # al 1 %: pocas tablas
         veh.respects_no_pass = bool(u[2] < self.no_pass_compliance)
         if u[3] < self.share_cautious:
             veh.driver = "prudente"

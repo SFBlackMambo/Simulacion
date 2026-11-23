@@ -48,19 +48,24 @@ def _free_speed(v: float, v0: float, idm, step: float) -> float:
     return v + idm.a_max * (1.0 - (v / v0) ** idm.delta) * step
 
 
-def _limite(road, veh: Vehicle, x: float) -> float:
-    """Velocidad permitida por el trazado (curvas y pendientes) en la posición propia `x`."""
+def _tabla(road, veh: Vehicle):
+    """Velocidad permitida por celda para este vehículo (curvas, pendientes, límites); None si es recta."""
     geo = road.geometry
     if geo is None:
+        return None
+    t = veh.vlim
+    if t is None:  # los rasgos del vehículo no cambian: se busca una sola vez
+        t = veh.vlim = geo.vlim_list(veh.direction, veh.grades, veh.limit_factor)
+    return t
+
+
+def _limite(road, veh: Vehicle, x: float) -> float:
+    """Velocidad permitida por el trazado (curvas y pendientes) en la posición propia `x`."""
+    tabla = _tabla(road, veh)
+    if tabla is None:
         return inf
-    v = geo.limit(veh.direction, x)
-    if geo.limits:
-        v = min(v, geo.speed_limit(veh.direction, x) * veh.limit_factor)
-    if geo.grades:
-        g = geo.grade(veh.direction, x)
-        if g:
-            v = min(v, speed_limit(veh.grades or AUTO_GRADES, g))
-    return v
+    k = int(x / road.geometry.grid)
+    return tabla[0 if k < 0 else (len(tabla) - 1 if k >= len(tabla) else k)]
 
 
 def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v_cap: float = inf) -> float:
@@ -71,12 +76,22 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v
     """
     dist = other.x + p.m_back + veh.length - veh.x
     v, rel, t, step, x = veh.v, 0.0, 0.0, 0.5, veh.x
+    tabla = _tabla(road, veh)
+    grid = road.geometry.grid if tabla is not None else 1.0
+    n = len(tabla) - 1 if tabla is not None else 0
+    a_max, delta, v0 = idm.a_max, idm.delta, veh.v0
+    a_other = (other.idm or road.idm).a_max
     while rel < dist:
-        v_new = min(_free_speed(v, veh.v0, idm, step), max(min(_limite(road, veh, x), v_cap), v - 3.0 * step))
+        if tabla is None:
+            lim = v_cap
+        else:
+            k = int(x / grid)
+            lim = min(tabla[0 if k < 0 else (n if k > n else k)], v_cap)
+        v_new = min(v + a_max * (1.0 - (v / v0) ** delta) * step, max(lim, v - 3.0 * step))
         x += 0.5 * (v + v_new) * step
         v = v_new
         t += step
-        v_other = min(other.v0, other.v + (other.idm or road.idm).a_max * t)  # cota: `other` podría acelerar
+        v_other = min(other.v0, other.v + a_other * t)  # cota: `other` podría acelerar
         rel += (v - v_other) * step
         if t > p.t_max:
             return inf
@@ -134,6 +149,14 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
                 return False  # uno detrás, o uno que vuelve: no se arriesga
             delante.append(u)  # va rebasando delante: se le puede seguir
     veh.convoy_start = bool(delante)
+    # Descarte rápido (mismo resultado, sin las cuentas caras): si no ve lo suficiente ni para
+    # el rebase más corto posible, no hay nada que calcular.
+    vis = _visible(road, p, veh, chain[0], delante)
+    f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
+    if vis < inf:
+        t_min = p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
+        if vis - p.v_unseen * (t_min + p.t_guard_unseen * f_guard) <= p.d_margin:
+            return False
     v_cap = min((u.v_des for u in delante), default=inf)  # no irá más rápido que el de delante
     t_pass = 0.0
     for other in chain:
@@ -144,7 +167,6 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
     # hasta volver del todo al carril propio (con tiempo de reacción, todo empieza un poco tarde)
     T = t_pass + p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
     x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh, v_cap) + p.d_margin
-    f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
     T_guard = T + p.t_guard * f_guard
     for u in road.vehicles:
         if u is veh or u.direction == veh.direction:
@@ -160,7 +182,6 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
     geo = road.geometry
     if geo is not None and veh.respects_no_pass and geo.no_pass_between(veh.direction, veh.x, x_end):
         return False  # la maniobra invadiría una zona de no rebase señalizada
-    vis = _visible(road, p, veh, chain[0], delante)
     if vis < inf:
         # Lo que no se ve puede traer un vehículo de frente: se supone uno a `v_unseen`
         # justo donde acaba la visibilidad. Así solo se rebasa si la maniobra cabe en lo visible.

@@ -240,13 +240,14 @@ class Road:
                 v0 = veh.v0
                 g = 0.0
                 if geo is not None:
-                    v0 = min(v0, geo.limit(direction, veh.x))
+                    tabla = veh.vlim
+                    if tabla is None:
+                        tabla = veh.vlim = geo.vlim_list(direction, veh.grades, veh.limit_factor)
+                    k = int(veh.x / geo.grid)
+                    k = 0 if k < 0 else (len(tabla) - 1 if k >= len(tabla) else k)
+                    v0 = min(v0, tabla[k])
                     if geo.grades:
-                        g = geo.grade(direction, veh.x)
-                        if g:
-                            v0 = min(v0, speed_limit(veh.grades or AUTO_GRADES, g))
-                    if geo.limits:
-                        v0 = min(v0, geo.speed_limit(direction, veh.x) * veh.limit_factor)
+                        g = geo.grade_list(direction)[k]
                     veh.v_des = v0
                 p_idm = veh.idm or idm
                 if leader is None:

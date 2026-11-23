@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from .slopes import AUTO_GRADES as _AUTO_GRADES
+
 K_CURVA = 4.0  # 1/s: ganancia con la que se sigue la velocidad permitida al frenar
 B_MAX_CURVA = 3.0  # m/s²: deceleración máxima por curva
 
@@ -194,6 +196,39 @@ class Geometry:
             v[i] = min(v[i], math.sqrt(v[i + 1] ** 2 + 2 * self.b_curve * self.grid))
         self._tablas[("v", direction)] = v
         return v
+
+    def vlim_list(self, direction: int, resp=None, limit_factor: float = 1.0) -> list:
+        """Velocidad permitida (m/s) por celda combinando curva, pendiente y límite señalizado.
+
+        Se consulta con `int(x / grid)`. Es una lista de Python (acceso más rápido que numpy)
+        y se guarda en caché por (sentido, tipo de vehículo, factor de exceso).
+        """
+        resp = resp or _AUTO_GRADES
+        clave = ("vl", direction, resp, limit_factor)
+        t = self._tablas.get(clave)
+        if t is not None:
+            return t
+        curva = self._tabla(direction)
+        n = len(curva)
+        comb = np.empty(n)
+        comb[:-1] = curva[1:]  # misma convención que `limit`: punto de rejilla siguiente
+        comb[-1] = curva[-1]
+        if self.grades:
+            pend = self._tabla_pend(direction)
+            from .slopes import speed_limit
+
+            comb = np.minimum(comb, [speed_limit(resp, g) if g else np.inf for g in pend])
+        if self.limits:
+            comb = np.minimum(comb, self._tabla_lim(direction) * limit_factor)
+        t = comb.tolist()
+        self._tablas[clave] = t
+        return t
+
+    def grade_list(self, direction: int) -> list:
+        t = self._tablas.get(("gl", direction))
+        if t is None:
+            t = self._tablas[("gl", direction)] = self._tabla_pend(direction).tolist()
+        return t
 
     def limit(self, direction: int, x: float) -> float:
         """Velocidad permitida (m/s) en la posición propia `x` del sentido `direction`."""
