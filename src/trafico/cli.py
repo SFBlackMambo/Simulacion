@@ -115,7 +115,6 @@ DEF_CAMPANA = SimConfig(n_probes=20)
 
 
 def cmd_campana(argv=None):
-    from .analysis import plot_campaign
     from .campaign import parse_sweep, run_campaign
 
     ap = argparse.ArgumentParser(
@@ -132,16 +131,60 @@ def cmd_campana(argv=None):
     ap.add_argument("--nucleos", type=int, default=1, help="procesos en paralelo")
     ap.add_argument("--viajes", action="store_true", help="guardar también el viaje de cada vehículo")
     ap.add_argument("--sin-graficas", action="store_true")
+    ap.add_argument("--rapido", action="store_true",
+                    help="simular con PyPy (de 2 a 5 veces más rápido; instálalo con scripts/instalar_pypy.sh)")
     ap.add_argument("--salida", required=True, help="carpeta de la campaña")
     args = ap.parse_args(argv)
+    if args.rapido:
+        return _campana_con_pypy(argv, args)
     base = config_from_args(args)
     sweeps = [parse_sweep(b) for b in args.barrer]
     out = run_campaign(base, sweeps, args.velocidades, list(range(1, args.semillas + 1)), args.salida,
                        workers=args.nucleos, guardar_viajes=args.viajes)
     if sweeps and not args.sin_graficas:
+        try:
+            from .analysis import plot_campaign
+
+            rutas = plot_campaign(out)
+            print(f"Gráficas y tablas en {rutas[0].parent}/")
+        except ImportError:  # p. ej. PyPy sin matplotlib
+            print(f"Sin gráficas (falta matplotlib). Hazlas con: trafico graficar {out}")
+    print(f"Datos en {out}/")
+    return out
+
+
+def pypy_path() -> Path | None:
+    """Python de PyPy del proyecto (.venv-pypy) o el de la variable TRAFICO_PYPY."""
+    import os
+
+    env = os.environ.get("TRAFICO_PYPY")
+    candidatos = [Path(env)] if env else []
+    raiz = Path(__file__).resolve().parents[2]
+    candidatos.append(raiz / ".venv-pypy" / "bin" / "python")
+    return next((c for c in candidatos if c.exists()), None)
+
+
+def _campana_con_pypy(argv, args):
+    """Corre la simulación de la campaña con PyPy y después las gráficas con este Python."""
+    import subprocess
+
+    from .analysis import plot_campaign
+
+    pypy = pypy_path()
+    if pypy is None:
+        print("No encontré PyPy. Instálalo con:  bash scripts/instalar_pypy.sh   (o quita --rapido)")
+        sys.exit(1)
+    resto = [a for a in argv if a not in ("--rapido",)]
+    if "--sin-graficas" not in resto:
+        resto.append("--sin-graficas")
+    print(f"Simulando con PyPy ({pypy})...", flush=True)
+    r = subprocess.run([str(pypy), "-m", "trafico", "campana", *resto])
+    if r.returncode != 0:
+        sys.exit(r.returncode)
+    out = Path(args.salida)
+    if args.barrer and not args.sin_graficas:
         rutas = plot_campaign(out)
         print(f"Gráficas y tablas en {rutas[0].parent}/")
-    print(f"Datos en {out}/")
     return out
 
 

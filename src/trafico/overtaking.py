@@ -176,6 +176,19 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         t_min = p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
         if vis - p.v_unseen * (t_min + p.t_guard_unseen * f_guard) <= p.d_margin:
             return False
+    # Descarte rápido por el tráfico de frente: con la maniobra más corta posible (T ≥ t_min) y
+    # un recorrido propio ≥ 0, si alguien de frente ya no deja espacio, tampoco lo dejará con la
+    # maniobra real. El que viene de frente recorre al menos min(v, v0)·T en la cota pesimista.
+    t_min = p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
+    tg_min = t_min + p.t_guard * f_guard
+    x_end_min = veh.x + p.d_margin
+    if road.length - p.v_entry * tg_min <= x_end_min:
+        return False
+    for u in road.vehicles:
+        if u.direction != veh.direction:
+            front = road.length - u.x
+            if front + u.length >= veh.rear and front - min(u.v, u.v0) * tg_min <= x_end_min:
+                return False
     v_cap = min((u.v_des for u in delante), default=inf)  # no irá más rápido que el de delante
     t_pass = 0.0
     for other in chain:

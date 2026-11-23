@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .slopes import AUTO_GRADES as _AUTO_GRADES
+from .slopes import downhill_factor as _downhill_factor
 
 K_CURVA = 4.0  # 1/s: ganancia con la que se sigue la velocidad permitida al frenar
 B_MAX_CURVA = 3.0  # m/s²: deceleración máxima por curva
@@ -249,13 +250,11 @@ class Geometry:
 
     def mult_list(self, direction: int, resp=None) -> list:
         """Factor sobre la velocidad deseada por celda: en bajada el conductor se deja llevar."""
-        from .slopes import downhill_factor
-
         resp = resp or _AUTO_GRADES
         clave = ("mult", direction, resp)
         t = self._tablas.get(clave)
         if t is None:
-            t = self._tablas[clave] = [downhill_factor(resp, g) for g in self._tabla_pend(direction)]
+            t = self._tablas[clave] = [_downhill_factor(resp, g) for g in self._tabla_pend(direction).tolist()]
         return t
 
     def grade_list(self, direction: int) -> list:
@@ -356,7 +355,7 @@ class Geometry:
         tabla = self._tablas.get(clave)
         if tabla is None:
             vs = np.arange(40.0, 152.0, 2.0) / 3.6
-            tabla = (vs, np.array([self.free_time(v, direction, idm, dt, grades_resp) for v in vs]))
+            tabla = (vs, np.array([self.free_time(v, direction, idm, dt, grades_resp) for v in vs.tolist()]))
             self._tablas[clave] = tabla
         return float(np.interp(v0, *tabla))
 

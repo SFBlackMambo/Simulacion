@@ -7,3 +7,4 @@ htmlcov/
 results/
 *.png
 !docs/*.png
+.venv-pypy/

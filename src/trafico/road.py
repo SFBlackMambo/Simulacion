@@ -239,6 +239,7 @@ class Road:
         accels: list[tuple] = []
         for (lane, direction), lst in groups.items():
             opposite = groups.get((lane, -direction))
+            pend_dir = geo.grade_list(direction) if geo is not None and geo.grades else None
             leader = None
             for i_veh, veh in enumerate(lst):
                 if (leader is not None and veh.lc < 1.0 and lane == veh.lane_prev and veh.state == REBASANDO
@@ -253,9 +254,12 @@ class Road:
                         tabla = veh.vlim = geo.vlim_list(direction, veh.grades, veh.limit_factor)
                     k = int(veh.x / geo.grid)
                     k = 0 if k < 0 else (len(tabla) - 1 if k >= len(tabla) else k)
-                    if geo.grades:
-                        g = geo.grade_list(direction)[k]
-                        v0 = v0 * geo.mult_list(direction, veh.grades)[k]  # en bajada se deja llevar
+                    if pend_dir is not None:
+                        g = pend_dir[k]
+                        mult = veh.mult
+                        if mult is None:
+                            mult = veh.mult = geo.mult_list(direction, veh.grades)
+                        v0 = v0 * mult[k]  # en bajada se deja llevar
                         g_activo = True
                     else:
                         g_activo = False
