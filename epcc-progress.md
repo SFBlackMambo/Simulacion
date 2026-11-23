@@ -195,3 +195,11 @@
 - Corrección: el modelo de conductores no se activaba solo con impaciencia (active no la incluía).
 - Resultado (10 km, 300 veh/h, 3 semillas): rebases por viaje agresivo 0.21-0.22, normal 0.14-0.15, prudente 0.09; 0 colisiones y 0 emergencias. La impaciencia sola casi no cambia (0.15 → 0.16): coherente con la sensibilidad de la fase 1, el margen no es lo que más limita.
 - Verificado: 151 tests; huella idéntica.
+
+---
+
+## F024 - 2026-11-22
+- Tiempo de reacción (`--param reaccion=1.0`): la aceleración se aplica con retraso; el frenado frontal de emergencia y los "sustos" (choque con el de delante en < 2 s o hueco crítico) son inmediatos. La predicción del rebase suma el tiempo de reacción.
+- Hallazgo 1: con retraso puro de 1 s el IDM es inestable: un frenón del líder crece por el pelotón hasta detener al décimo coche. Se usó el Human Driver Model (Treiber 2006): estimación del hueco al momento de actuar + multi-anticipación (3 de delante, pesos 1/j²). Con eso el pelotón es estable hasta 1.2 s y el hueco de equilibrio no cambia (~39 m).
+- Hallazgo 2: al cambiar de carril se aplicaban frenazos decididos en el carril anterior (bajaba de 120 a 38 km/h y provocaba sustos). Ahora el cambio de carril descarta las decisiones pendientes. Resultado: 0 emergencias.
+- Verificado: 157 tests; huella idéntica; estrés con todo activado: 0 colisiones, 0 emergencias.

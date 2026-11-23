@@ -58,3 +58,23 @@ def advance(vehicle: Vehicle, a: float, dt: float) -> None:
     v_nueva = max(0.0, vehicle.v + a * dt)
     vehicle.x += 0.5 * (vehicle.v + v_nueva) * dt
     vehicle.v = v_nueva
+
+
+def hdm_acceleration(v: float, v0: float, leaders: list[tuple[float, float]], p: IDMParams = IDMParams()) -> float:
+    """IDM con multi-anticipación (Human Driver Model, Treiber et al. 2006).
+
+    `leaders` = [(hueco hasta el j-ésimo de delante, su velocidad), ...], del más
+    cercano al más lejano. Cada interacción pesa 1/j² y se normaliza para que en
+    equilibrio el hueco con el primero sea el mismo que con el IDM normal.
+    """
+    libre = 1.0 - (v / v0) ** p.delta
+    if not leaders:
+        return p.a_max * libre
+    c = 1.0 / sum(1.0 / (j * j) for j in range(1, len(leaders) + 1))
+    raiz = 2.0 * math.sqrt(p.a_max * p.b)
+    inter = 0.0
+    for j, (gap, v_l) in enumerate(leaders, start=1):
+        s_des = p.s0 + max(0.0, v * p.T + v * (v - v_l) / raiz)
+        # el j-ésimo está ~j huecos más allá: s* se escala con j
+        inter += c * (j * s_des / max(gap, 1e-6)) ** 2 / (j * j)
+    return p.a_max * (libre - inter)

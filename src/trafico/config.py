@@ -44,6 +44,7 @@ ALIAS = {
     "prudentes": "drivers.share_cautious",
     "agresivos": "drivers.share_aggressive",
     "impaciencia": "drivers.impatience_after",
+    "reaccion": "reaction_time",
 }
 
 

@@ -57,6 +57,8 @@ class Vehicle:
     respects_no_pass: bool = True
     driver: str = "normal"  # "prudente", "normal" o "agresivo"
     t_stuck: float = 0.0  # tiempo seguido atrapado detrás de otro, s
+    a_buf: object = None  # aceleraciones pendientes (tiempo de reacción)
+    a_prev: float = 0.0  # última aceleración aplicada
     convoy_start: bool = False  # el último intento de rebase seguía a otro que ya rebasaba
     convoy_overtakes: int = 0  # rebases empezados siguiendo a otro (en cadena)
     idm: object = None  # IDMParams propios (None: los de la carretera)
@@ -75,6 +77,8 @@ class Vehicle:
 
     def change_lane(self, lane: int, duration: float) -> None:
         """Empieza un cambio de carril (instantáneo si `duration` es 0)."""
+        if self.a_buf:
+            self.a_buf.clear()  # situación nueva: las decisiones pendientes ya no valen
         if duration <= 0:
             self.lane = lane
             return

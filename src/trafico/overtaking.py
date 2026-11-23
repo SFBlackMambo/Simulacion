@@ -141,7 +141,8 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         if t == inf:
             return False
         t_pass = max(t_pass, t)
-    T = t_pass + p.t_margin + p.t_lane_change  # hasta volver del todo al carril propio
+    # hasta volver del todo al carril propio (con tiempo de reacción, todo empieza un poco tarde)
+    T = t_pass + p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
     x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh, v_cap) + p.d_margin
     f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
     T_guard = T + p.t_guard * f_guard

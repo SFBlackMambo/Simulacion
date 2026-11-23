@@ -12,11 +12,12 @@ from . import overtaking
 from .fleet import AUTO, CAMION, LARGO_AUTO, TruckParams
 from .geometry import curve_accel
 from .slopes import AUTO_GRADES, accel_limit, speed_limit
-from .idm import IDMParams, advance, idm_acceleration
+from .idm import IDMParams, advance, hdm_acceleration, idm_acceleration
 from .overtaking import OvertakeParams
 from .vehicle import Vehicle
 
 _POR_X = attrgetter("x")
+N_ANTICIPA = 3  # con tiempo de reacción, cuántos vehículos de delante se miran
 
 
 class Road:
@@ -40,6 +41,7 @@ class Road:
         trucks=None,
         drivers=None,
         driver_seed=None,
+        reaction_time: float = 0.0,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -54,6 +56,8 @@ class Road:
         self.drivers = drivers if drivers is not None and drivers.active else None
         self._driver_rng = np.random.default_rng(driver_seed) if self.drivers is not None else None
         self._idm_cache: dict = {}
+        # tiempo de reacción: la aceleración se aplica con `n` pasos de retraso
+        self.reaction_steps = int(round(reaction_time / dt)) if reaction_time > 0 else 0
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -228,11 +232,11 @@ class Road:
         if self.overtaking is not None and overtaking.update(self, groups):
             groups = self._groups()
         idm, dt, geo = self.idm, self.dt, self.geometry
-        accels: list[tuple[Vehicle, float, bool]] = []
+        accels: list[tuple] = []
         for (lane, direction), lst in groups.items():
             opposite = groups.get((lane, -direction))
             leader = None
-            for veh in lst:
+            for i_veh, veh in enumerate(lst):
                 v0 = veh.v0
                 g = 0.0
                 if geo is not None:
@@ -247,22 +251,51 @@ class Road:
                 p_idm = veh.idm or idm
                 if leader is None:
                     a = idm_acceleration(veh.v, v0, None, None, p_idm)
+                elif self.reaction_steps:
+                    # Con tiempo de reacción el conductor se anticipa (Human Driver Model, Treiber 2006):
+                    # estima huecos y su velocidad para cuando su acción haga efecto, y mira a varios
+                    # de delante (multi-anticipación), lo que evita que los pelotones oscilen.
+                    tau = self.reaction_steps * dt
+                    v_est = max(0.0, veh.v + tau * veh.a_prev)
+                    lideres = []
+                    for j in range(1, N_ANTICIPA + 1):
+                        if i_veh - j < 0:
+                            break
+                        u = lst[i_veh - j]
+                        gap = u.rear - veh.x
+                        lideres.append((max(0.1, gap - tau * (veh.v - u.v)), u.v))
+                    a = hdm_acceleration(v_est, v0, lideres, p_idm)
                 else:
                     a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, p_idm)
                 if geo is not None:
                     a = curve_accel(a, veh.v, v0)
                     if g > 0:  # en subida el motor no da para más
                         a = min(a, accel_limit(veh.grades or AUTO_GRADES, veh.v, g))
-                if opposite:
-                    a = self._head_on_brake(veh, opposite, a)
+                a_seguir = a
+                a_frontal = self._head_on_brake(veh, opposite, math.inf) if opposite else math.inf
+                a = min(a_seguir, a_frontal)
                 # ¿lo frena alguien? (líder a menos de 4 s o de 50 m)
                 cerca = leader is not None and leader.rear - veh.x < max(50.0, 4.0 * veh.v)
-                accels.append((veh, a, cerca))
+                critico = False
+                if self.reaction_steps and leader is not None:  # susto: reacciona sin demora
+                    gap = leader.rear - veh.x
+                    dv = veh.v - leader.v
+                    critico = gap < p_idm.s0 + 0.5 * veh.v or (dv > 0 and gap / dv < 2.0)
+                accels.append((veh, a, cerca, a_seguir, a_frontal, critico))
                 leader = veh
         if any(v.lc < 1.0 for v in self.vehicles):
             accels = _fusionar(accels)
         t_lc = self.overtaking.t_lane_change if self.overtaking is not None else 0.0
-        for veh, a, cerca in accels:
+        n_r = self.reaction_steps
+        for veh, a, cerca, a_seguir, a_frontal, critico in accels:
+            if n_r:
+                buf = veh.a_buf
+                if buf is None:
+                    buf = veh.a_buf = deque()
+                buf.append(a_seguir)
+                a_dem = buf.popleft() if len(buf) > n_r else a_seguir
+                a = min(a_seguir if critico else a_dem, a_frontal)  # el frenado frontal es inmediato
+                veh.a_prev = a
             advance(veh, a, dt)
             if veh.lc < 1.0:
                 veh.lc = min(1.0, veh.lc + dt / t_lc) if t_lc > 0 else 1.0
@@ -343,13 +376,13 @@ def _fusionar(accels):
     más restrictiva (frena por lo que tenga delante en cualquiera de los dos carriles)."""
     vistos: dict[int, int] = {}
     out = []
-    for veh, a, cerca in accels:
+    for veh, a, cerca, a_s, a_f, crit in accels:
         k = id(veh)
         if k in vistos:
             i = vistos[k]
-            v0, a0, c0 = out[i]
-            out[i] = (v0, min(a0, a), c0 or cerca)
+            v0, a0, c0, s0, f0, k0 = out[i]
+            out[i] = (v0, min(a0, a), c0 or cerca, min(s0, a_s), min(f0, a_f), k0 or crit)
         else:
             vistos[k] = len(out)
-            out.append((veh, a, cerca))
+            out.append((veh, a, cerca, a_s, a_f, crit))
     return out
