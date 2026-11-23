@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from math import inf
 
 from .recorder import REBASE_ABORTO, REBASE_FIN, REBASE_INICIO
-from .slopes import AUTO_GRADES, speed_limit
+from .slopes import AUTO_GRADES, accel_limit
 from .vehicle import REBASANDO, REGRESANDO, SIGUIENDO, Vehicle
 
 
@@ -85,13 +85,18 @@ def _time_to_clear(road, veh: Vehicle, other: Vehicle, p: OvertakeParams, idm, v
     n = len(tabla) - 1 if tabla is not None else 0
     a_max, delta, v0 = idm.a_max, idm.delta, veh.v0
     a_other = (other.idm or road.idm).a_max
+    pend = road.geometry.grade_list(veh.direction) if tabla is not None and road.geometry.grades else None
+    resp = veh.grades or AUTO_GRADES
     while rel < dist:
         if tabla is None:
             lim = v_cap
         else:
             k = int(x / grid)
-            lim = min(tabla[0 if k < 0 else (n if k > n else k)], v_cap)
+            k = 0 if k < 0 else (n if k > n else k)
+            lim = min(tabla[k], v_cap)
         v_new = min(v + a_max * (1.0 - (v / v0) ** delta) * step, max(lim, v - 3.0 * step))
+        if pend is not None and pend[k] > 0:  # en subida el motor limita la aceleración
+            v_new = min(v_new, max(0.0, v + accel_limit(resp, v, pend[k]) * step))
         x += 0.5 * (v + v_new) * step
         v = v_new
         t += step

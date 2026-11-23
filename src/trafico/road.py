@@ -11,7 +11,7 @@ from .arrivals import PoissonArrivals
 from . import overtaking
 from .fleet import AUTO, CAMION, LARGO_AUTO, TruckParams
 from .geometry import curve_accel
-from .slopes import AUTO_GRADES, accel_limit, speed_limit
+from .slopes import AUTO_GRADES, accel_limit
 from .idm import IDMParams, advance, hdm_acceleration, idm_acceleration
 from .overtaking import OvertakeParams
 from .vehicle import REBASANDO, Vehicle

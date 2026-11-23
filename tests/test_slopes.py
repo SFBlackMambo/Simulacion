@@ -96,3 +96,22 @@ def test_pendientes_desde_texto_en_porcentaje(tmp_path):
     assert cfg.grades == ((1000.0, 3000.0, 0.05), (4000.0, 5000.0, -0.03))
     cfgmod.save(cfg, tmp_path / "c.json")
     assert cfgmod.load(tmp_path / "c.json")[0] == cfg
+
+
+def test_en_subida_pierde_velocidad_poco_a_poco():
+    """En subida no se frena: el motor no da para más y la velocidad baja gradualmente."""
+    geo = Geometry(12000, grades=((1000.0, 11000.0, 0.06),))
+    road = Road(length=12000, dt=0.2, geometry=geo, trucks=TruckParams())
+    v = road.place(105 / 3.6, 500.0, kind=CAMION)
+    vel = {}
+    peor = 0.0
+    while v.x < 4000:
+        road.step()
+        if v.x > 1000:
+            peor = min(peor, v.a_prev)
+        for d in (500, 1000):
+            if d not in vel and v.x - 1000 >= d:
+                vel[d] = v.v * 3.6
+    assert peor > -0.6  # nunca "frena"; pierde a lo más ~0.4 m/s²
+    assert vel[500] > 70  # medio kilómetro de 6 % todavía va arriba de 70 km/h
+    assert vel[1000] > 45

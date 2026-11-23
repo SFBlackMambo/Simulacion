@@ -215,9 +215,11 @@ class Geometry:
         comb[-1] = curva[-1]
         if self.grades:
             pend = self._tabla_pend(direction)
-            from .slopes import speed_limit
+            from .slopes import downhill_speed
 
-            comb = np.minimum(comb, [speed_limit(resp, g) if g else np.inf for g in pend])
+            # Solo la bajada limita la velocidad deseada (freno de motor). En subida no se "frena":
+            # el motor no da para más y el vehículo pierde velocidad poco a poco (ver accel_limit).
+            comb = np.minimum(comb, [downhill_speed(resp, g) if g < 0 else np.inf for g in pend])
         if self.limits:
             comb = np.minimum(comb, self._tabla_lim(direction) * limit_factor)
         t = comb.tolist()
@@ -288,7 +290,7 @@ class Geometry:
         if clave in self._tablas:
             return self._tablas[clave]
         from .idm import idm_acceleration
-        from .slopes import AUTO_GRADES, accel_limit, speed_limit
+        from .slopes import AUTO_GRADES, accel_limit, downhill_speed
 
         r = grades_resp or AUTO_GRADES
         v_in = min(v0, self.limit(direction, 0.0))
@@ -298,8 +300,8 @@ class Geometry:
         while x < self.length:
             vd = min(v0, self.limit(direction, x))
             g = self.grade(direction, x) if self.grades else 0.0
-            if g:
-                vd = min(vd, speed_limit(r, g))
+            if g < 0:
+                vd = min(vd, downhill_speed(r, g))
             if self.limits:
                 vd = min(vd, self.speed_limit(direction, x) * limit_factor)
             a = curve_accel(idm_acceleration(v, vd, None, None, idm), v, vd)
