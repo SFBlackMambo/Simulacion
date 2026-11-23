@@ -6,6 +6,7 @@ from operator import attrgetter
 
 from .arrivals import PoissonArrivals
 from . import overtaking
+from .geometry import curve_accel
 from .idm import IDMParams, advance, idm_acceleration
 from .overtaking import OvertakeParams
 from .vehicle import Vehicle
@@ -30,6 +31,7 @@ class Road:
         d_emergency: float = 30.0,
         overtaking: OvertakeParams | None = None,
         recorder=None,
+        geometry=None,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -39,6 +41,7 @@ class Road:
         self.d_emergency = d_emergency  # distancia mínima frente a frente, m
         self.overtaking = overtaking  # None: nadie rebasa
         self.recorder = recorder  # Recorder opcional (solo lee el estado)
+        self.geometry = geometry if geometry is not None and not geometry.straight else None
         self.t = 0.0
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
@@ -146,10 +149,11 @@ class Road:
                     last = u
             elif self.front_in_opposite_frame(u) < 200.0 and self.front_in_opposite_frame(u) + u.length > 0:
                 return None  # un rebasante contrario viene de frente por este carril
+        v_max = veh.v0 if self.geometry is None else min(veh.v0, self.geometry.limit(veh.direction, 0.0))
         if last is None:
-            return veh.v0
+            return v_max
         gap = last.rear  # el frente del que entra está en x = 0
-        v_in = min(veh.v0, last.v) if gap < 200.0 else veh.v0
+        v_in = min(v_max, last.v) if gap < 200.0 else v_max
         if gap >= self.idm.s0 + v_in * self.idm.T:
             return v_in
         return None
@@ -188,28 +192,36 @@ class Road:
         groups = self._groups()
         if self.overtaking is not None and overtaking.update(self, groups):
             groups = self._groups()
-        idm, dt = self.idm, self.dt
-        accels: list[tuple[Vehicle, float]] = []
+        idm, dt, geo = self.idm, self.dt, self.geometry
+        accels: list[tuple[Vehicle, float, bool]] = []
         for (lane, direction), lst in groups.items():
             opposite = groups.get((lane, -direction))
             leader = None
             for veh in lst:
+                v0 = veh.v0
+                if geo is not None:
+                    v0 = min(v0, geo.limit(direction, veh.x))
+                    veh.v_des = v0
                 if leader is None:
-                    a = idm_acceleration(veh.v, veh.v0, None, None, idm)
+                    a = idm_acceleration(veh.v, v0, None, None, idm)
                 else:
-                    a = idm_acceleration(veh.v, veh.v0, leader.rear - veh.x, leader.v, idm)
+                    a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, idm)
+                if geo is not None:
+                    a = curve_accel(a, veh.v, v0)
                 if opposite:
                     a = self._head_on_brake(veh, opposite, a)
-                accels.append((veh, a))
+                # ¿lo frena alguien? (líder a menos de 4 s o de 50 m)
+                cerca = leader is not None and leader.rear - veh.x < max(50.0, 4.0 * veh.v)
+                accels.append((veh, a, cerca))
                 leader = veh
-        for veh, a in accels:
+        for veh, a, cerca in accels:
             advance(veh, a, dt)
-            if veh.v < veh.v0 - 1.0:
+            if veh.v < veh.v_des - 1.0:
                 veh.t_slow += dt
-                if not veh.slowed:
+                if not veh.slowed and cerca:
                     veh.slowed = True
                     veh.catchups += 1
-            elif veh.slowed and veh.v > veh.v0 - 0.3:
+            elif veh.slowed and veh.v > veh.v_des - 0.3:
                 veh.slowed = False
         self.t += dt
         self.n_steps += 1

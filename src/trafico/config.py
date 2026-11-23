@@ -27,6 +27,9 @@ ALIAS = {
     "v_media": "v0_mean_kmh",
     "sigma": "v0_std_kmh",
     "rebases": "overtaking",
+    "semilla_trazado": "geometry_seed",
+    "a_lateral": "curve_a_lat",
+    "despeje": "sight_clearance",
 }
 
 
@@ -43,6 +46,8 @@ def from_dict(d: dict) -> SimConfig:
     for key, cls in _ANIDADOS.items():
         if key in kw and isinstance(kw[key], dict):
             kw[key] = cls(**kw[key])
+    if "curves" in kw:
+        kw["curves"] = tuple(tuple(c) for c in kw["curves"])
     return SimConfig(**kw)
 
 

@@ -35,6 +35,12 @@ class SimConfig:
     mode: str = "flujo"
     n_vehicles: int = 0
     duration: float = 0.0  # la corrida dura al menos warmup + duration, s
+    # Trazado: "recta", un trazado generado (ver geometry.PRESETS) o curvas explícitas.
+    trazado: str = "recta"
+    geometry_seed: int = 1  # semilla del trazado generado (independiente del tráfico)
+    curves: tuple = ()  # ((inicio, fin, radio), ...) en m; se usa si trazado == "recta"
+    curve_a_lat: float = 2.0  # aceleración lateral cómoda en curva, m/s²
+    sight_clearance: float = 8.0  # despeje lateral para la visibilidad en curva, m
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -68,6 +74,35 @@ class RunResult:
     recorder: Recorder | None = None
 
 
+_GEOMETRIAS: dict = {}
+
+
+def geometry_from_config(cfg: SimConfig):
+    """Trazado de `cfg` (None si es recto). Se guarda en caché por proceso."""
+    from .geometry import Geometry, build_trazado
+
+    clave = (cfg.length, cfg.trazado, cfg.geometry_seed, tuple(map(tuple, cfg.curves)), cfg.curve_a_lat,
+             cfg.sight_clearance)
+    if clave not in _GEOMETRIAS:
+        if cfg.trazado == "recta":
+            curvas = tuple(map(tuple, cfg.curves))
+        else:
+            curvas = build_trazado(cfg.trazado, cfg.length, cfg.geometry_seed)
+        geo = Geometry(cfg.length, curvas, a_lat=cfg.curve_a_lat, clearance=cfg.sight_clearance)
+        _GEOMETRIAS[clave] = None if geo.straight else geo
+    return _GEOMETRIAS[clave]
+
+
+def free_time(cfg: SimConfig, v0: float, direction: int = 1, exact: bool = True) -> float:
+    """Tiempo de viaje en vía libre (s) para velocidad deseada `v0` (m/s)."""
+    geo = geometry_from_config(cfg)
+    if geo is None:
+        return cfg.length / v0
+    if exact:
+        return geo.free_time(v0, direction, cfg.idm, cfg.dt)
+    return geo.free_time_interp(v0, direction, cfg.idm, cfg.dt)
+
+
 def probe_times(cfg: SimConfig) -> list[float]:
     """Instantes de entrada de las sondas."""
     return [cfg.warmup + i * cfg.probe_spacing for i in range(cfg.n_probes)]
@@ -81,7 +116,8 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
     """
     if cfg.mode not in MODOS:
         raise ValueError(f"modo desconocido {cfg.mode!r}; opciones: {MODOS}")
-    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder)
+    road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
+                geometry=geometry_from_config(cfg))
     ss = np.random.SeedSequence(seed).spawn(2)
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
@@ -132,7 +168,7 @@ def run_simulation(
             v0_kmh=probe_v0_kmh,
             t_entry=p.t_entry,
             travel_time=p.travel_time,
-            free_time=cfg.length / p.v0,
+            free_time=free_time(cfg, p.v0),
             overtakes=p.overtakes,
             t_slow=p.t_slow,
             t_wait_entry=p.t_wait_entry,
@@ -145,6 +181,6 @@ def run_simulation(
         collisions=road.collisions,
         emergency_vehicles=sum(v.emergency_steps > 0 for v in road.finished),
         background_finished=len(background),
-        trips=[viaje(v, cfg.length / v.v0) for v in road.finished],
+        trips=[viaje(v, free_time(cfg, v.v0, v.direction, exact=False)) for v in road.finished],
         recorder=recorder,
     )

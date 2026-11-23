@@ -99,7 +99,7 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
 
 def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) -> bool:
     leader = lst[i - 1]
-    if leader.rear - veh.x > p.trigger_gap or leader.v + p.dv_min > veh.v0:
+    if leader.rear - veh.x > p.trigger_gap or leader.v + p.dv_min > veh.v_des:
         return False
     need = veh.length + p.m_back + p.m_front
     chain = [leader]

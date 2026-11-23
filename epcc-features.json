@@ -476,12 +476,13 @@
       "subtasks": [
         {
           "name": "Curvas y velocidad",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 4
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-22T18:26:29-07:00"
     },
     {
       "id": "F016",

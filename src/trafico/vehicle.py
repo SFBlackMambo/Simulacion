@@ -49,11 +49,14 @@ class Vehicle:
     catchups: int = 0  # veces que tuvo que ir por debajo de v0 (alcanzó a alguien)
     slowed: bool = False  # va ahora por debajo de v0 (con histéresis)
     full_trip: bool = True  # False si empezó a mitad de la carretera (modo lleno)
+    v_des: float = -1.0  # velocidad que busca ahora: v0, o menos en curva
     targets: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.lane < 0:
             self.lane = self.home_lane
+        if self.v_des < 0:
+            self.v_des = self.v0
 
     @property
     def home_lane(self) -> int:

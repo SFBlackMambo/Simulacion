@@ -117,3 +117,11 @@
 ## F014 - 2026-11-22
 - menu.py: `trafico` (sin argumentos) o `trafico menu` abre un menú: corrida única, animación, campaña (elige parámetros a barrer y valores) o graficar. Enter acepta los valores por defecto; valida entradas; al final muestra el comando equivalente para repetirlo y lo ejecuta.
 - Verificado: 83 tests (menú con entradas simuladas, incluida una corrida real).
+
+---
+
+## F015 - 2026-11-22
+- geometry.py: Geometry con curvas (inicio, fin, radio). Velocidad permitida √(a_lat·R) (a_lat = 2 m/s²) con envolvente de frenado anticipado (b = 1 m/s²) en rejilla de 10 m por sentido; seguimiento con ganancia 4/s. Tiempo libre con curvas integrando las mismas ecuaciones (exacto para sondas, interpolado cada 1 km/h para el fondo).
+- SimConfig: trazado, geometry_seed, curves, curve_a_lat, sight_clearance. Vehicle.v_des. Los "alcances" solo cuentan si hay un líder cerca (frenar por curva no cuenta).
+- Verificado: 91 tests; con carretera recta los resultados son idénticos bit a bit a los anteriores; en curva nadie supera el límite.
+- Hallazgo: con curvas aparecen frenados de emergencia (10-23 por corrida, 0 en recta) porque la predicción del rebase supone aceleración libre hasta v0. Se resuelve en F016.
