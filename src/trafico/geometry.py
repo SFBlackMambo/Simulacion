@@ -29,7 +29,8 @@ class Geometry:
     curves: tuple[tuple[float, float, float], ...] = ()  # (inicio, fin, radio), m
     a_lat: float = 2.0  # aceleración lateral cómoda, m/s²
     b_curve: float = 1.0  # deceleración para llegar a la curva a su velocidad, m/s²
-    clearance: float = 8.0  # despeje lateral para la visibilidad en curva, m
+    clearance: float = 10.0  # despeje lateral para la visibilidad en curva, m
+    no_pass_sight: float = 450.0  # para dibujar: con menos visibilidad se marca "no rebasar", m
     grid: float = 10.0
     _tablas: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
 
@@ -96,6 +97,39 @@ class Geometry:
         i0 = min(max(int(x0 / self.grid), 0), len(t) - 1)
         i1 = min(max(int(x1 / self.grid), i0), len(t) - 1)
         return float(t[i0:i1 + 1].min())
+
+    # --- visibilidad -----------------------------------------------------------
+    def sight_in_curve(self, radius: float) -> float:
+        """Distancia de visibilidad dentro de una curva de radio `radius` (m)."""
+        return math.sqrt(8.0 * radius * self.clearance)
+
+    def _tabla_vis(self, direction: int) -> np.ndarray:
+        t = self._tablas.get(("vis", direction))
+        if t is not None:
+            return t
+        n = int(math.ceil(self.length / self.grid)) + 1
+        xs = np.arange(n) * self.grid
+        vis = np.full(n, np.inf)
+        for a, b, r in self.curves:
+            # inicio y fin de la curva en el sistema propio del sentido
+            xa, xb = (a, b) if direction == 1 else (self.length - b, self.length - a)
+            sc = self.sight_in_curve(r)
+            # antes de la curva se ve la recta hasta ella más un trozo de curva; dentro, solo el trozo
+            d = np.where(xs < xa, xa - xs, np.where(xs < xb, 0.0, np.inf))
+            vis = np.minimum(vis, d + sc)
+        self._tablas[("vis", direction)] = vis
+        return vis
+
+    def sight(self, direction: int, x: float) -> float:
+        """Cuánto se ve hacia delante (m) desde la posición propia `x`."""
+        t = self._tabla_vis(direction)
+        i = int(x / self.grid)
+        return float(t[min(max(i, 0), len(t) - 1)])
+
+    def can_pass_at(self, s: float, direction: int = 1) -> bool:
+        """Para dibujar: ¿hay visibilidad típica de rebase en el punto `s` de la carretera?"""
+        x = s if direction == 1 else self.length - s
+        return self.sight(direction, x) >= self.no_pass_sight
 
     # --- tiempo libre --------------------------------------------------------
     def free_time(self, v0: float, direction: int, idm, dt: float) -> float:

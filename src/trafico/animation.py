@@ -28,7 +28,7 @@ TEXTO = (240, 239, 236)  # #f0efec
 TEXTO2 = (195, 194, 183)  # #c3c2b7
 LINEA = (240, 239, 236)
 AMARILLO = (201, 133, 0)  # línea central continua (no rebasar)
-CURVA = (44, 44, 42)
+CURVA = (40, 40, 38)
 C_LIBRE = (57, 135, 229)  # #3987e5 azul
 C_SONDA = (217, 89, 38)  # #d95926 naranja
 C_REBASE = (25, 158, 112)  # #199e70 aqua
@@ -214,12 +214,14 @@ class Animacion:
             return 40 + (s - izq) * esc
 
         pg.draw.rect(scr, ASFALTO, (40, top, w - 80, alto_via))
+        scr.set_clip(pg.Rect(40, top - 30, w - 80, alto_via + 60))
         if geo is not None:
-            for a, b in geo.curve_spans():
+            for a, b, r in geo.curves:
                 if b > izq and a < izq + self.ventana:
                     xa, xb = max(40, X(a)), min(w - 40, X(b))
                     pg.draw.rect(scr, CURVA, (xa, top, xb - xa, alto_via))
-                    scr.blit(self.f_peq.render("curva", True, TEXTO2), (xa + 6, top + alto_via + 6))
+                    txt = f"curva R = {r:.0f} m · máx {ms_a_kmh(geo.curve_speed(r)):.0f} km/h"
+                    scr.blit(self.f_peq.render(txt, True, TEXTO2), (xa + 6, top + alto_via + 6))
         # línea central: discontinua, o continua donde no se puede rebasar
         ymid = top + carril
         paso = 12.0 if self.ventana < 3000 else 60.0

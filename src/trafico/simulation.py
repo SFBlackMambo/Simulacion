@@ -40,7 +40,7 @@ class SimConfig:
     geometry_seed: int = 1  # semilla del trazado generado (independiente del tráfico)
     curves: tuple = ()  # ((inicio, fin, radio), ...) en m; se usa si trazado == "recta"
     curve_a_lat: float = 2.0  # aceleración lateral cómoda en curva, m/s²
-    sight_clearance: float = 8.0  # despeje lateral para la visibilidad en curva, m
+    sight_clearance: float = 10.0  # despeje lateral para la visibilidad en curva, m
 
 
 MODOS = ("flujo", "lleno", "total")

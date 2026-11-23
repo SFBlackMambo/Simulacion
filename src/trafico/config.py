@@ -81,6 +81,8 @@ def set_param(cfg: SimConfig, name: str, value) -> SimConfig:
         return dataclasses.replace(cfg, overtaking=None)
     if name == "overtaking" and str(value).lower() in ("si", "sí", "yes", "1", "true"):
         return dataclasses.replace(cfg, overtaking=cfg.overtaking or OvertakeParams())
+    if name == "curves" and isinstance(value, str):
+        return dataclasses.replace(cfg, curves=parse_curves(value))
     partes = name.split(".")
     if len(partes) == 1:
         campos = {f.name: f for f in dataclasses.fields(SimConfig)}
@@ -97,6 +99,16 @@ def set_param(cfg: SimConfig, name: str, value) -> SimConfig:
         nuevo = dataclasses.replace(sub, **{partes[1]: _convertir(value, getattr(sub, partes[1]), float)})
         return dataclasses.replace(cfg, **{partes[0]: nuevo})
     raise KeyError(f"parámetro desconocido: {name}")
+
+
+def parse_curves(texto: str) -> tuple:
+    """`"1500:2500:200;6000:6400:350"` -> ((1500, 2500, 200), (6000, 6400, 350)) (metros)."""
+    out = []
+    for parte in texto.replace(" ", "").split(";"):
+        if parte:
+            a, b, r = (float(x) for x in parte.split(":"))
+            out.append((a, b, r))
+    return tuple(out)
 
 
 def get_param(cfg: SimConfig, name: str):

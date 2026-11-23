@@ -125,3 +125,11 @@
 - SimConfig: trazado, geometry_seed, curves, curve_a_lat, sight_clearance. Vehicle.v_des. Los "alcances" solo cuentan si hay un líder cerca (frenar por curva no cuenta).
 - Verificado: 91 tests; con carretera recta los resultados son idénticos bit a bit a los anteriores; en curva nadie supera el límite.
 - Hallazgo: con curvas aparecen frenados de emergencia (10-23 por corrida, 0 en recta) porque la predicción del rebase supone aceleración libre hasta v0. Se resuelve en F016.
+
+---
+
+## F016 - 2026-11-22
+- Visibilidad: dentro de una curva se ve √(8·R·m) (despeje lateral m = 10 m); antes de ella, la recta hasta la curva más ese trozo. Para rebasar se supone un vehículo de frente invisible a 108 km/h (v_unseen) justo donde acaba la visibilidad, con 2 s de margen: en curva solo se rebasa si la maniobra cabe en lo visible. Primer intento con los márgenes del extremo de la carretera (144 km/h, 6 s) exigía ~1.6 km de visibilidad y anulaba todos los rebases; se separaron los parámetros.
+- La predicción del rebase respeta la velocidad de curva del que rebasa. Con esto los frenados de emergencia con curvas pasan de 10-23 por corrida a 0.
+- Animación: curvas sombreadas con radio y velocidad máxima, línea central amarilla continua donde no hay visibilidad de rebase. `--param curves=inicio:fin:radio;...`.
+- Verificado: 97 tests; recta idéntica bit a bit; 0 colisiones y 0 emergencias con curvas y tráfico.
