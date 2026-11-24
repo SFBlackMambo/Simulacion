@@ -8,3 +8,4 @@ results/
 *.png
 !docs/*.png
 .venv-pypy/
+_site/

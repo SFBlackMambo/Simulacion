@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resultados: ¿qué velocidad conviene en una carretera de dos carriles?</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body class="claro">
+  <nav class="pestanas">
+    <span class="marca">Tráfico en dos carriles</span>
+    <a href="index.html">Simulación</a>
+    <a href="resultados.html" class="activa">Resultados</a>
+    <a href="https://github.com/SFBlackMambo/Simulacion" class="externo">Código en GitHub</a>
+  </nav>
+
+  <main class="cartel">
+    <h1>¿Vale la pena ir más rápido en una carretera de dos carriles?</h1>
+    <p class="lema">Simulamos miles de viajes de 20 km para medir cuánto tiempo se gana de verdad al querer ir más
+      rápido, y cuánto cuesta en combustible, CO2 y riesgo.</p>
+
+    <div class="respuesta"><b>Respuesta corta:</b> el que va más rápido siempre llega antes, pero cada vez gana
+      menos. Con tráfico moderado, ir a 130 en vez de 100 km/h ahorra <b>1 minuto en 20 km</b>, y solo conviene
+      si tu hora vale más de <b>~370 pesos</b>. Con los precios que supusimos, la velocidad de menor costo es
+      <b>90-100 km/h</b>.</div>
+
+    <div class="cifras">
+      <div class="cifra"><div class="n">60 s</div><div class="t">se ganan yendo a 130 en vez de 100 (20 km, 200 veh/h)</div></div>
+      <div class="cifra"><div class="n">+11 %</div><div class="t">de combustible (5.4 → 6.0 L/100 km)</div></div>
+      <div class="cifra"><div class="n">×1.4</div><div class="t">riesgo de accidentes con muertos (modelo potencia)</div></div>
+      <div class="cifra"><div class="n">+8 km/h</div><div class="t">sube la velocidad media real (de 94 a 102) queriendo ir 30 km/h más rápido</div></div>
+    </div>
+
+    <h2>Cómo funciona</h2>
+    <div class="pasos">
+      <div class="paso"><b>1. Una carretera virtual</b>20 km, un carril por sentido, con curvas, pendientes,
+        camiones y conductores distintos. Cada vehículo quiere ir a su velocidad (en promedio 100 km/h).</div>
+      <div class="paso"><b>2. Reglas de manejo</b>Si alcanzas a uno más lento, lo sigues. Solo rebasas por el
+        carril contrario si ves un hueco suficiente frente al que viene de frente (y te asomas para verlo).</div>
+      <div class="paso"><b>3. Vehículos sonda</b>Metemos autos que quieren ir a 90, 100, … 150 km/h, siempre en
+        el <i>mismo</i> tráfico, y medimos cuánto tardan, cuánto gastan y a qué riesgo se exponen.</div>
+    </div>
+    <p>Cada escenario se repite 8 veces con tráfico distinto; las barras de las gráficas son intervalos de
+      confianza de 95 %. En total, 3,248 simulaciones. Puedes ver una en vivo en la pestaña
+      <a href="index.html">Simulación</a>.</p>
+
+    <h2>1. Llega antes, pero cada paso gana menos</h2>
+    <figure>
+      <img src="img/f4_ganancia_vs_100.png" alt="Tiempo ganado contra ir a 100 km/h, según la velocidad deseada y el tráfico">
+      <figcaption>Tiempo que se gana en 20 km contra ir a 100 km/h. Con más tráfico, quedas atrapado detrás de
+        otros y la ganancia se desvanece.</figcaption>
+    </figure>
+    <table>
+      <thead><tr><th>Tráfico por sentido</th><th>100 → 120</th><th>100 → 130</th><th>100 → 150</th><th>Velocidad media real queriendo ir a 130</th></tr></thead>
+      <tbody>
+        <tr><td>Carretera vacía (ideal)</td><td>120 s</td><td>166 s</td><td>240 s</td><td>130 km/h</td></tr>
+        <tr><td>100 veh/h</td><td>93 s</td><td>126 s</td><td>171 s</td><td>119 km/h</td></tr>
+        <tr><td>200 veh/h</td><td>42 s</td><td>60 s</td><td>87 s</td><td>102 km/h</td></tr>
+        <tr><td>300 veh/h</td><td>19 s</td><td>25 s</td><td>44 s</td><td>94 km/h</td></tr>
+        <tr><td>450 veh/h</td><td>7 s</td><td>12 s</td><td>18 s</td><td>89 km/h</td></tr>
+      </tbody>
+    </table>
+
+    <h2>2. Lo que cuesta ir más rápido</h2>
+    <table>
+      <thead><tr><th>Velocidad deseada (km/h)</th><th>90</th><th>100</th><th>110</th><th>120</th><th>130</th><th>140</th><th>150</th></tr></thead>
+      <tbody>
+        <tr><td>Tiempo de viaje (s)</td><td>815</td><td>767</td><td>742</td><td>725</td><td>707</td><td>694</td><td>680</td></tr>
+        <tr><td>Combustible (L/100 km)</td><td>5.1</td><td>5.4</td><td>5.6</td><td>5.7</td><td>6.0</td><td>6.2</td><td>6.5</td></tr>
+        <tr><td>Riesgo de muertos (×)</td><td>0.60</td><td>0.78</td><td>0.90</td><td>0.99</td><td>1.10</td><td>1.20</td><td>1.30</td></tr>
+        <tr><td>Riesgo individual, Kloeden (×)</td><td>0.72</td><td>1.03</td><td>1.32</td><td>1.58</td><td>1.98</td><td>2.38</td><td>2.87</td></tr>
+        <tr><td>Segundos en el carril contrario</td><td>4</td><td>10</td><td>19</td><td>30</td><td>41</td><td>49</td><td>56</td></tr>
+      </tbody>
+    </table>
+    <p>Recta de 20 km con 200 vehículos por hora en cada sentido. El riesgo se mide de tres formas que no se
+      mezclan: el <i>modelo potencia</i> (los accidentes con muertos crecen como la velocidad a la 4.1), la curva
+      de <i>Kloeden</i> (riesgo por ir más rápido que los demás) y lo que mide la propia simulación (tiempo
+      expuesto en el carril contrario, frenadas de emergencia).</p>
+    <figure>
+      <img src="img/f4_partes_costo_200.png" alt="Costo del viaje en pesos por partes: tiempo, combustible, CO2 y accidentes">
+      <figcaption>Costo de un viaje de 20 km en pesos, con precios medios supuestos: tiempo (100 $/h), gasolina
+        (24 $/L), CO2 y accidentes esperados. Ir más rápido ahorra un poco de tiempo, pero sube todo lo demás.</figcaption>
+    </figure>
+
+    <h2>3. ¿Cuánto tendría que valer tu hora?</h2>
+    <figure>
+      <img src="img/f4_valor_equilibrio.png" alt="Valor de la hora a partir del cual conviene ir más rápido que 100 km/h">
+      <figcaption>A partir de este valor de la hora (pesos por vehículo) conviene ir más rápido que 100 km/h.
+        Para ir a 130 hace falta que tu hora valga entre 350 y 440 pesos.</figcaption>
+    </figure>
+    <table>
+      <thead><tr><th>Carretera (20 km)</th><th>Gana 100 → 130</th><th>Conviene si tu hora vale más de…</th><th>Mejor velocidad</th></tr></thead>
+      <tbody>
+        <tr><td>Recta, poco tráfico (100 veh/h)</td><td>126 s</td><td>438 $</td><td>90</td></tr>
+        <tr><td>Recta, tráfico moderado (200 veh/h)</td><td>60 s</td><td>370 $</td><td>90</td></tr>
+        <tr><td>Pocas curvas (200 veh/h)</td><td>46 s</td><td>365 $</td><td>90</td></tr>
+        <tr><td>Muchas curvas (200 veh/h)</td><td>9 s</td><td>614 $</td><td>90</td></tr>
+        <tr><td>Montaña (200 veh/h)</td><td>2 s</td><td>535 $</td><td>90</td></tr>
+        <tr><td>Montañoso con 10 % de camiones</td><td>27 s</td><td>210 $</td><td><b>110</b></td></tr>
+        <tr><td>Con carriles de rebase 2+1 (350 veh/h)</td><td>30 s</td><td>400 $</td><td>90</td></tr>
+      </tbody>
+    </table>
+    <p><b>La excepción: la montaña con camiones.</b> Ahí todos van detrás de los camiones en las subidas, la
+      velocidad real casi no cambia y el riesgo tampoco, así que querer ir un poco más rápido (110 km/h) gana
+      algunos segundos casi gratis.</p>
+
+    <h2>4. Lo que más cambia el resultado</h2>
+    <ul>
+      <li><b>Ver el carril contrario.</b> Si el conductor se asoma para ver detrás del de delante, rebasa mucho
+        más y la ganancia de ir rápido se multiplica por más de tres (de 13 a 44 s yendo a 130 en vez de 100).</li>
+      <li><b>Carriles de rebase 2+1</b> (un tramo de 1.5 km cada 5 km): todos pierden menos tiempo (el retraso
+        medio baja de 87 a 76 s con 350 veh/h) y se rebasa el doble. Mejorar la carretera rinde más que ir rápido.</li>
+      <li><b>Aceptar huecos justos</b> (cada conductor arriesga distinto): sube un poco los rebases, pero trae
+        frenadas de emergencia y los únicos 3 choques en 13.5 millones de km simulados.</li>
+    </ul>
+    <figure>
+      <img src="img/f4_ganancia_2mas1_350.png" alt="Tiempo ganado con y sin carriles de rebase 2+1">
+      <figcaption>Tiempo ganado contra ir a 100 km/h, con y sin carriles de rebase 2+1 (modelo realista,
+        350 veh/h por sentido).</figcaption>
+    </figure>
+
+    <h2>Lo que no sabemos (los límites)</h2>
+    <div class="limites">
+      <ul>
+        <li>El modelo <b>no está calibrado con datos de carreteras mexicanas</b>: los números exactos son una
+          estimación; lo confiable es la forma (ganancias cada vez menores, costos que crecen más rápido).</li>
+        <li>Los <b>precios son supuestos</b>: el valor del tiempo, el costo de los accidentes y el del CO2. Por
+          eso el resultado más útil es el valor de la hora de equilibrio, que no depende del valor del tiempo.</li>
+        <li>Las curvas de riesgo vienen de otros países y de flujos completos, no de un solo vehículo.</li>
+        <li>No hay intersecciones, clima, ni lo que pasa después de un choque.</li>
+      </ul>
+    </div>
+
+    <h2>Los datos</h2>
+    <p>Todo es reproducible y abierto: el simulador, las 3,248 corridas y sus tablas. Las tablas por escenario
+      están en <a href="https://github.com/SFBlackMambo/Simulacion/tree/master/docs">docs/</a>
+      (<code>f4_*_resumen.csv</code>), el diccionario de columnas en
+      <a href="https://github.com/SFBlackMambo/Simulacion/blob/master/docs/datos.md">docs/datos.md</a> y cómo
+      correrlo en el <a href="https://github.com/SFBlackMambo/Simulacion#readme">README</a>.</p>
+  </main>
+</body>
+</html>

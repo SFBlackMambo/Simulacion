@@ -17,7 +17,7 @@ import math
 import os
 
 from .recorder import REBASE_ABORTO, REBASE_FIN
-from .simulation import SimConfig, build_road, free_time, probe_times
+from .simulation import SimConfig, build_road, free_time, probe_times, tramos_2mas1
 from .vehicle import REBASANDO, REGRESANDO, kmh_a_ms, ms_a_kmh
 
 # Paleta (modo oscuro). Los tres tonos validan todas las parejas (CVD y visión normal).
@@ -409,32 +409,7 @@ class Animacion:
                 self.screen.blit(self.f_peq.render("· " + p, True, TEXTO2), (x - 14, yy))
 
     def _texto_modelo(self) -> list[str]:
-        """Qué comportamiento extra está activado (fase 3)."""
-        c, o, d = self.cfg, self.cfg.overtaking, self.cfg.drivers
-        partes = []
-        if c.trucks.share > 0:
-            partes.append(f"{100 * c.trucks.share:g} % camiones")
-        if o is not None and o.t_lane_change > 0:
-            partes.append(f"cambio de carril {o.t_lane_change:g} s")
-        if o is not None and o.convoy:
-            partes.append("rebase en cadena")
-        if o is not None and o.peek:
-            partes.append("se asoma para ver")
-        elif o is not None and o.blocked_view:
-            partes.append("vista tapada")
-        if c.passing_lanes:
-            partes.append(f"{len(c.passing_lanes)} tramos con carril de rebase (2+1)")
-        if o is not None and o.gap_logit:
-            partes.append("acepta huecos al azar (logit)" + (" con piso" if o.gap_floor else ""))
-        if d.share_cautious or d.share_aggressive:
-            partes.append(f"{100 * d.share_cautious:g} % prudentes, {100 * d.share_aggressive:g} % agresivos")
-        if d.impatience_after > 0:
-            partes.append(f"impaciencia tras {d.impatience_after:g} s atrapado")
-        if c.reaction_time > 0:
-            partes.append(f"reacción {c.reaction_time:g} s")
-        if c.speed_limit_kmh > 0 or c.speed_limits:
-            partes.append(f"límites (respeta {100 * d.limit_compliance:g} %)")
-        return partes
+        return texto_modelo(self.cfg)
 
     def _perfil(self, geo, x0, y0, ancho, alto, a_vis, b_vis) -> None:
         """Perfil de alturas de toda la carretera, con la ventana visible marcada."""
@@ -476,6 +451,35 @@ class Animacion:
         if screenshot:
             pg.image.save(self.screen, screenshot)
         pg.quit()
+
+
+def texto_modelo(cfg) -> list[str]:
+    """Qué comportamiento extra está activado (para la leyenda de la animación)."""
+    c, o, d = cfg, cfg.overtaking, cfg.drivers
+    partes = []
+    if c.trucks.share > 0:
+        partes.append(f"{100 * c.trucks.share:g} % camiones")
+    if o is not None and o.t_lane_change > 0:
+        partes.append(f"cambio de carril {o.t_lane_change:g} s")
+    if o is not None and o.convoy:
+        partes.append("rebase en cadena")
+    if o is not None and o.peek:
+        partes.append("se asoma para ver")
+    elif o is not None and o.blocked_view:
+        partes.append("vista tapada")
+    if tramos_2mas1(c):
+        partes.append(f"{len(tramos_2mas1(c))} tramos con carril de rebase (2+1)")
+    if o is not None and o.gap_logit:
+        partes.append("acepta huecos al azar (logit)" + (" con piso" if o.gap_floor else ""))
+    if d.share_cautious or d.share_aggressive:
+        partes.append(f"{100 * d.share_cautious:g} % prudentes, {100 * d.share_aggressive:g} % agresivos")
+    if d.impatience_after > 0:
+        partes.append(f"impaciencia tras {d.impatience_after:g} s atrapado")
+    if c.reaction_time > 0:
+        partes.append(f"reacción {c.reaction_time:g} s")
+    if c.speed_limit_kmh > 0 or c.speed_limits:
+        partes.append(f"límites (respeta {100 * d.limit_compliance:g} %)")
+    return partes
 
 
 class _Contador:

@@ -6,6 +6,10 @@ con los precios supuestos conviene ir a 90-100 km/h salvo que tu hora valga más
 [fase 4](#resultados-fase-4-qué-velocidad-conviene)). Para empezar a usarlo, el
 [tutorial](#tutorial-de-cero-a-qué-velocidad-me-conviene).
 
+**Pruébalo en el navegador, sin instalar nada:** <https://sfblackmambo.github.io/Simulacion/> (pestaña
+*Simulación*: la animación en vivo, corriendo el mismo simulador en tu navegador con Pyodide; pestaña
+*Resultados*: un cartel con lo que encontramos).
+
 Simulación por pasos de tiempo de una carretera con **un carril por sentido**. Cada vehículo tiene
 una **velocidad deseada fija** y busca mantenerla. Si alcanza a uno más lento, frena y lo sigue; solo
 puede **rebasar invadiendo el carril contrario** cuando hay un hueco seguro frente al tráfico que viene
@@ -24,6 +28,13 @@ trafico graficar DIR    # gráficas de una campaña ya corrida
 ```
 
 `python -m trafico ...` funciona igual. Cada comando acepta `-h` para ver todas sus opciones.
+
+### Sitio web
+
+`site/` es la página de GitHub Pages: la animación (`index.html`, `sim.js`, con el simulador de `src/trafico`
+corriendo en un *Web Worker* con Pyodide) y el cartel de resultados (`resultados.html`). Se publica sola con
+cada push (`.github/workflows/pages.yml`). Para probarla en tu PC: `bash scripts/sitio.sh --servir` y abre
+<http://localhost:8000>. La primera vez tarda unos segundos en cargar Python y numpy.
 
 ### Menú
 
@@ -679,7 +690,9 @@ src/trafico/  vehicle, fleet (camiones), drivers (conductores), idm (IDM y HDM),
               recorder, single, campaign, analysis, plots, plots_explore, animation, menu, cli, config,
               fuel (combustible y CO2), costos (riesgo y precios), mejor (la mejor velocidad)
 tests/        pruebas con pytest
-scripts/      run_experiment.py, sensitivity.py (fase 1), campanas_fase4.sh, resumen_fase4.py (fase 4)
+scripts/      run_experiment.py, sensitivity.py (fase 1), campanas_fase4.sh, resumen_fase4.py (fase 4),
+              sitio.sh (arma el sitio web)
+site/         página web: simulación en el navegador y cartel de resultados
 docs/         gráficas y tablas de resultados
 ```
 

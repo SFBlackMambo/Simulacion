@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulación: ¿vale la pena ir más rápido en una carretera de dos carriles?</title>
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body class="oscuro">
+  <nav class="pestanas">
+    <span class="marca">Tráfico en dos carriles</span>
+    <a href="index.html" class="activa">Simulación</a>
+    <a href="resultados.html">Resultados</a>
+    <a href="https://github.com/SFBlackMambo/Simulacion" class="externo">Código en GitHub</a>
+  </nav>
+
+  <main class="sim">
+    <header>
+      <h1>¿Vale la pena ir más rápido? Rebases en carretera de dos carriles</h1>
+      <p class="sub">Cada auto quiere ir a su velocidad. Si alcanza a uno más lento, lo sigue, y solo puede rebasarlo
+        por el carril contrario cuando ve un hueco seguro. La <b>sonda</b> (naranja) quiere ir más rápido que
+        todos: ¿cuánto tiempo gana? La simulación corre aquí, en tu navegador.</p>
+    </header>
+
+    <form id="controles" class="controles" autocomplete="off">
+      <label class="escenario">Escenario
+        <select id="escenario">
+          <option value="ligero">Tráfico ligero: se puede rebasar</option>
+          <option value="denso">Tráfico denso: nadie puede rebasar</option>
+          <option value="2mas1">Con carriles de rebase 2+1</option>
+          <option value="montana">Montaña con camiones</option>
+          <option value="propio">Personalizado</option>
+        </select></label>
+      <label>Tráfico
+        <select name="modo">
+          <option value="lleno">Carretera llena (N por sentido)</option>
+          <option value="flujo">Por flujo (veh/h por sentido)</option>
+        </select></label>
+      <label id="l-vehiculos">Vehículos por sentido <input name="vehiculos" type="number" min="5" max="200" value="15"></label>
+      <label id="l-flujo" hidden>Veh/h por sentido <input name="flujo" type="number" min="20" max="900" step="10" value="300"></label>
+      <label>Longitud (km) <input name="longitud_km" type="number" min="3" max="20" step="1" value="8"></label>
+      <label>Carretera
+        <select name="trazado">
+          <option value="recta">Recta</option>
+          <option value="pocas">Pocas curvas</option>
+          <option value="muchas">Muchas curvas</option>
+          <option value="montana">Montaña</option>
+        </select></label>
+      <label>Relieve
+        <select name="relieve">
+          <option value="plano">Plano</option>
+          <option value="lomerio">Lomerío</option>
+          <option value="montanoso">Montañoso</option>
+        </select></label>
+      <label class="check"><input name="realista" type="checkbox" checked> Comportamiento realista</label>
+      <label>Camiones (%) <input name="camiones" type="number" min="0" max="50" step="5" value="10"></label>
+      <label>Carril de rebase 2+1
+        <select name="cada_2mas1_km">
+          <option value="0">No</option>
+          <option value="3">Cada 3 km</option>
+          <option value="5">Cada 5 km</option>
+        </select></label>
+      <label>Sonda quiere ir a (km/h) <input name="vel_sonda" type="number" min="60" max="160" step="10" value="130"></label>
+      <label>Semilla <input name="semilla" type="number" min="1" max="9999" value="1"></label>
+      <button type="submit" id="iniciar" disabled>Iniciar</button>
+    </form>
+
+    <div class="barra">
+      <button id="pausa" title="Espacio">Pausa</button>
+      <label>Velocidad
+        <select id="velocidad" title="+ / −">
+          <option>1</option><option>2</option><option selected>5</option><option>10</option>
+          <option>20</option><option>50</option>
+        </select>× tiempo real</label>
+      <button id="alejar" title="X">− zoom</button>
+      <button id="acercar" title="Z">+ zoom</button>
+      <button id="seguir" class="activo" title="S">Seguir a la sonda</button>
+      <span id="contadores" class="contadores"></span>
+    </div>
+
+    <div id="cargando" class="cargando">Cargando…</div>
+    <canvas id="lienzo" width="1600" height="560" aria-label="Animación de la carretera"></canvas>
+
+    <section class="paneles">
+      <div>
+        <h2>La sonda</h2>
+        <div id="panel-sonda" class="panel-sonda">—</div>
+        <h2>Sondas que ya llegaron</h2>
+        <table id="tabla-sondas" class="tabla">
+          <thead><tr><th></th><th>Tardó</th><th>En vía libre</th><th>Perdió</th><th>Rebasó</th><th>Frenó por otro</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <p id="promedio" class="nota"></p>
+      </div>
+      <div>
+        <h2>Colores</h2>
+        <ul class="leyenda">
+          <li><span class="mu" style="background:#3987e5"></span>Libre</li>
+          <li><span class="mu" style="background:#c3c2b7"></span>Atrapado detrás de otro</li>
+          <li><span class="mu" style="background:#199e70"></span>Rebasando</li>
+          <li><span class="mu" style="background:#d95926"></span>Sonda</li>
+          <li><span class="mu camion" style="background:#3987e5"></span>Camión (largo, con cabina)</li>
+        </ul>
+        <h2>Modelo</h2>
+        <ul id="modelo" class="modelo"></ul>
+        <p class="nota">Teclas: <kbd>Espacio</kbd> pausa · <kbd>+</kbd>/<kbd>−</kbd> velocidad · <kbd>Z</kbd>/<kbd>X</kbd>
+          zoom · <kbd>←</kbd>/<kbd>→</kbd> mover · <kbd>S</kbd> seguir sonda · clic en el mapa para ir a ese punto.</p>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="sim.js"></script>
+</body>
+</html>
