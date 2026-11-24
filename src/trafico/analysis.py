@@ -27,6 +27,9 @@ ETIQUETAS = {
     "relieve": "Relieve",
     "trucks.share": "Fracción de camiones",
     "overtaking.convoy": "Rebase en cadena",
+    "overtaking.gap_logit": "Aceptación de hueco",
+    "overtaking.peek": "Vista detrás del de delante",
+    "passing_every": "Carriles de rebase (2+1)",
     "reaction_time": "Tiempo de reacción (s)",
     "overtaking.t_lane_change": "Duración del cambio de carril (s)",
     "sight_clearance": "Despeje lateral en curvas (m)",
@@ -53,6 +56,13 @@ def valor_legible(param: str, v) -> str:
         return f"{100 * v:g} % camiones"
     if param == "trazado":
         return {"recta": "Recta", "pocas": "Pocas curvas", "muchas": "Muchas curvas", "montana": "Montaña"}.get(v, v)
+    if param == "passing_every" and isinstance(v, float):
+        return "Sin carriles de rebase" if v <= 0 else f"2+1 cada {v / 1000:g} km"
+    if param in ("overtaking.gap_logit", "overtaking.peek"):
+        si = str(v).lower() in ("true", "1", "1.0")
+        if param == "overtaking.gap_logit":
+            return "Hueco con logit" if si else "Hueco con criterio fijo"
+        return "Se asoma" if si else "Vista tapada fija"
     if param == "length" and isinstance(v, float):
         return f"{v / 1000:g} km"
     if param == "flow_per_hour" and isinstance(v, float):

@@ -78,3 +78,16 @@ def test_estres_realista_con_carriles_de_rebase_sin_choques():
     sin = [run_simulation(base, 130, s) for s in (1, 2)]
     rebases = lambda rs: sum(t["rebases"] for r in rs for t in r.trips)
     assert rebases(con) > rebases(sin)
+
+
+def test_patron_cada_2mas1_y_etiquetas():
+    from trafico.analysis import valor_legible
+    from trafico.simulation import tramos_2mas1
+
+    cfg = cfgmod.set_param(SimConfig(), "cada_2mas1", "5000")
+    assert tramos_2mas1(cfg) == ((2500.0, 4000.0, 1), (7500.0, 9000.0, -1), (12500.0, 14000.0, 1),
+                                 (17500.0, 19000.0, -1))
+    assert tramos_2mas1(SimConfig()) == ()
+    assert valor_legible("passing_every", 0.0) == "Sin carriles de rebase"
+    assert valor_legible("passing_every", 5000.0) == "2+1 cada 5 km"
+    assert valor_legible("overtaking.gap_logit", True) == "Hueco con logit"

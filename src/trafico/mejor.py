@@ -127,6 +127,7 @@ def tablas(folder, precios: dict[str, Precios] | None = None) -> tuple[list[dict
                         fila[f"medio_{k}"] = _media(partes[k])
                 costo_por_v[v][esc] = (m, hw, {s: _media(x) for s, x in por_sem.items()})
             filas.append(fila)
+        _equilibrio(filas, combo_vals=vals, ref=ref)
         for esc in precios:
             disp = {v: c[esc] for v, c in costo_por_v.items()}
             if not disp:
@@ -146,6 +147,25 @@ def tablas(folder, precios: dict[str, Precios] | None = None) -> tuple[list[dict
                             "rango_empate": f"{min(empate):g}-{max(empate):g}",
                             **{f"costo_{v:g}": disp[v][0] for v in sorted(disp)}})
     return filas, mejores
+
+
+def _equilibrio(filas: list[dict], combo_vals: dict, ref: float) -> None:
+    """Valor del tiempo (MXN por vehículo y hora) con el que ir a cada velocidad cuesta lo mismo que a `ref`.
+
+    = (combustible + CO2 + accidentes de más, con precios medios) / horas ganadas. Si el valor del tiempo es
+    mayor, conviene ir más rápido que `ref`. También sin accidentes (solo combustible y CO2).
+    """
+    fs = [f for f in filas if all(f.get(k) == v for k, v in combo_vals.items())]
+    base = next((f for f in fs if f["v_sonda"] == ref), None)
+    if base is None or "medio_combustible" not in base:
+        return
+    for f in fs:
+        horas = f["ganancia_vs_ref"] / 3600.0
+        extra_sin = (f["medio_combustible"] + f["medio_co2"]) - (base["medio_combustible"] + base["medio_co2"])
+        extra = extra_sin + f["medio_accidentes"] - base["medio_accidentes"]
+        ok = f["v_sonda"] != ref and horas > 0
+        f["vtt_equilibrio"] = extra / horas if ok else float("nan")
+        f["vtt_equilibrio_sin_accidentes"] = extra_sin / horas if ok else float("nan")
 
 
 # --- gráficas -------------------------------------------------------------------------------------------
@@ -214,6 +234,10 @@ def graficar(folder, precios: dict[str, Precios] | None = None, salida=None) -> 
     lineas("l_100km", "Combustible de la sonda", "L/100 km", "mejor_combustible.png")
     lineas("riesgo_kloeden", "Riesgo individual (Kloeden): según cuánto se aleja del tráfico",
            "Riesgo relativo de accidente", "mejor_riesgo_kloeden.png")
+    lineas("vtt_equilibrio", f"¿Cuánto tendría que valer una hora para que convenga ir más rápido que {ref:g}?",
+           "MXN por vehículo y hora (combustible, CO2 y accidentes)", "mejor_valor_equilibrio.png")
+    lineas("vtt_equilibrio_sin_accidentes", f"Lo mismo sin contar accidentes (solo combustible y CO2)",
+           "MXN por vehículo y hora", "mejor_valor_equilibrio_sin_accidentes.png")
     for esc in precios:
         riesgo = "riesgo individual de Kloeden" if precios[esc].riesgo == "kloeden" else "riesgo con el modelo potencia"
         lineas(f"costo_{esc}", f"Costo del viaje: precios {esc.split('_')[0]}, {riesgo}", "MXN por viaje",

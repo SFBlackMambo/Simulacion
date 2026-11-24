@@ -55,6 +55,8 @@ class SimConfig:
     reaction_time: float = 0.0  # tiempo de reacción de los conductores, s (0 = inmediato)
     b_physical: float = 0.0  # frenado máximo físico, m/s² (0 = sin tope)
     passing_lanes: tuple = ()  # ((inicio, fin, sentido), ...) tramos con carril de rebase (2+1), m
+    passing_every: float = 0.0  # si no hay `passing_lanes`: un tramo 2+1 cada tantos m, alternando (0 = ninguno)
+    passing_length: float = 1500.0  # largo de esos tramos, m
 
 
 MODOS = ("flujo", "lleno", "total")
@@ -178,6 +180,16 @@ def probe_times(cfg: SimConfig) -> list[float]:
     return [cfg.warmup + i * cfg.probe_spacing for i in range(cfg.n_probes)]
 
 
+def tramos_2mas1(cfg: SimConfig) -> tuple:
+    """Tramos con carril de rebase: los dados, o el patrón alternado de `passing_every`."""
+    if cfg.passing_lanes or cfg.passing_every <= 0:
+        return tuple(map(tuple, cfg.passing_lanes))
+    from .config import parse_curves, patron_2mas1
+
+    return tuple((a, b, int(d)) for a, b, d in parse_curves(patron_2mas1(cfg.length, cfg.passing_every,
+                                                                          cfg.passing_length)))
+
+
 def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> Road:
     """Carretera con el tráfico de fondo de `cfg` (sin sondas), lista para avanzar.
 
@@ -196,7 +208,7 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
                 geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks, drivers=cfg.drivers,
                 driver_seed=driver_seed, truck_seed=truck_seed, reaction_time=cfg.reaction_time,
                 b_physical=cfg.b_physical, logit_seed=logit_seed,
-                passing_lanes=tuple(map(tuple, cfg.passing_lanes)))
+                passing_lanes=tramos_2mas1(cfg))
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
             sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, trucks=cfg.trucks)

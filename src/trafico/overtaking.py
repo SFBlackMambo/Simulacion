@@ -379,6 +379,16 @@ def _is_safe_logit(road, p: OvertakeParams, veh: Vehicle, chain: list, delante: 
     return _u01(road.logit_seed, veh.id, gid, 3) < prob
 
 
+def _frenar_al_volver(p: OvertakeParams, veh: Vehicle, u: Vehicle) -> float:
+    """Con `return_closing`, el hueco para volver delante de `u` debe cubrir también lo que se necesita para
+    frenar desde la velocidad del rebase (hasta v0) hasta la de `u`: así el plan usa el mismo hueco que el
+    regreso (sin esto, a mucha velocidad el hueco planeado no alcanzaba y seguía de largo por el carril
+    contrario rebasando a un pelotón que nunca evaluó)."""
+    if not p.return_closing:
+        return 0.0
+    return max(0.0, veh.v0 - u.v) ** 2 / (2.0 * p.b_return)
+
+
 def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) -> bool:
     if veh.lc < 1.0:
         return False  # aún termina un cambio de carril
@@ -398,7 +408,7 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
     need = veh.length + p.m_back + p.m_front
     chain = [leader]
     j = i - 1
-    while j > 0 and lst[j - 1].rear - lst[j].x < need:
+    while j > 0 and lst[j - 1].rear - lst[j].x < need + _frenar_al_volver(p, veh, lst[j - 1]):
         chain.append(lst[j - 1])
         j -= 1
         if len(chain) > p.max_chain:

@@ -48,6 +48,8 @@ ALIAS = {
     "piso_seguro": "overtaking.gap_floor",
     "asomarse": "overtaking.peek",
     "carriles_rebase": "passing_lanes",
+    "cada_2mas1": "passing_every",
+    "largo_2mas1": "passing_length",
 }
 
 

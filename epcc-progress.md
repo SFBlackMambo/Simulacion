@@ -339,3 +339,10 @@
 - Campañas: velocidades por defecto 90-150 de 10 en 10 (CLI y menú). Menú → graficar pregunta por la mejor velocidad.
 - Prueba con una campaña chica (8 km, 100 y 300 veh/h): con precios medios la mejor es 90 km/h; a 300 veh/h, de 90 a 120 no se distingue (el tráfico no deja ir más rápido: la velocidad media solo pasa de 89 a 100 km/h).
 - Verificado: 219 tests.
+
+---
+
+## Corrección al correr las campañas de F037 - 2026-11-23
+- Con sondas a 150 km/h aparecieron choques en el realista, incluso con el criterio fijo. Causa: al planear el rebase, el pelotón a rebasar se armaba con huecos de 44.5 m, pero con `return_closing` el regreso exige además la distancia para frenar desde la velocidad del rebase (a 150 contra 83 km/h, +57 m). La sonda no podía volver, seguía de largo por el carril contrario rebasando a un pelotón que nunca evaluó y terminaba en frenado de emergencia (en un caso, la alcanzaron por detrás al volver casi detenida).
+- Corrección (`overtaking._frenar_al_volver`, solo con `return_closing`): el plan usa el mismo hueco que el regreso. Realista recta 200 veh/h, 8 semillas, sonda a 150: choques 1 → 0; sustos por corrida 2.9 → 1.5 (criterio fijo) y 12.2 → 9.8 (logit). El modelo simple no cambia; la huella tampoco (sus corridas cortas no caen en el caso).
+- Se vuelven a correr las cinco campañas realistas de la fase 4.

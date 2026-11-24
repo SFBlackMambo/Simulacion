@@ -91,7 +91,9 @@ Controles: `Espacio` pausa, `+`/`-` velocidad (×1 a ×100), rueda o `Z`/`X` zoo
 ### Comportamiento realista (fase 3)
 
 Todo esto viene **apagado por defecto** (así los resultados de las fases 1 y 2 se reproducen exactamente).
-`--realista` lo enciende con valores razonables, y cada pieza se puede ajustar o barrer por separado:
+`--realista` lo enciende con valores razonables (desde la fase 4 incluye asomarse y la aceptación de hueco con
+logit; los carriles de rebase no, porque son parte de la carretera), y cada pieza se puede ajustar o barrer por
+separado:
 
 | Qué | Cómo se activa | Qué hace |
 |---|---|---|
@@ -99,7 +101,10 @@ Todo esto viene **apagado por defecto** (así los resultados de las fases 1 y 2 
 | Pendientes | `--relieve lomerio` / `montanoso`, o `--param "pendientes=1000:3000:6;..."` (%) | Física con potencia del motor y aire, calibrada con datos (ver abajo). En subida se pierde velocidad poco a poco; en bajada la gravedad empuja y se gana velocidad (autos hasta +10 %, camiones +5 %); los camiones muy cargados usan freno de motor solo en bajadas fuertes (>4 %) y largas (>2 km). |
 | Cambio de carril gradual | `--param overtaking.t_lane_change=3` | Cambiar de carril tarda 3 s y mientras tanto ocupa los dos carriles. |
 | Rebase en cadena | `--param overtaking.convoy=1` | Se puede seguir a otro que ya rebasa, si el rebase propio es seguro. |
-| Visión tapada | `--param overtaking.blocked_view=1` | Detrás de un camión a menos de 3 s no se ve el carril contrario; detrás de un auto a menos de 2 s se ven 500 m. |
+| Visión tapada | `--param overtaking.blocked_view=1` | Regla fija (fase 3): detrás de un camión a menos de 3 s no se ve el carril contrario; detrás de un auto a menos de 2 s se ven 500 m. |
+| Asomarse (fase 4) | `--param asomarse=1` | Reemplaza la regla fija por una línea de visión: el conductor se corre 0.6 m hacia la raya central y ve más cuanto más lejos va del de delante. Detrás de un auto ve todo; detrás de un camión a 20 m, ~107 m. |
+| Aceptación de hueco con logit (fase 4) | `--param rebase_logit=1` | En lugar del margen fijo de 6 s, cada conductor acepta un hueco con una probabilidad que crece con el tiempo sobrante, con un rasgo propio (al estilo de Farah). Sin piso de seguridad (`piso_seguro=1` lo añade). |
+| Carriles de rebase 2+1 (fase 4) | `--param cada_2mas1=5000` o `--param "carriles_rebase=2000:3500:1;..."` | Tramos en que un sentido tiene un segundo carril para rebasar sin tráfico de frente; incorporación obligada al final; el otro sentido no rebasa ahí. |
 | Límites de velocidad | `--param limite=90` o `--param "limites=5000:8000:70"` | Se frena antes de la señal. Con `respetan_limite=0.8`, el 20 % se pasa entre 10 y 30 %. |
 | Zonas de no rebase | `--param "zonas_no_rebase=2000:5000"` o `no_rebase_sin_visibilidad=1` | Quien respeta (`respetan_no_rebase`) no empieza un rebase que invada la zona. |
 | Tipos de conductor | `--param prudentes=0.2 --param agresivos=0.15` | Prudentes: más margen, más distancia y más diferencia de velocidad para decidir rebasar. Agresivos: lo contrario. |
@@ -117,9 +122,12 @@ simulación corre con PyPy y las gráficas con el Python normal. Da exactamente 
 
 ```bash
 trafico campana --barrer trazado=recta,pocas,muchas --barrer flujo=100,200,300 \
-    --velocidades 110 120 130 --semillas 8 --sondas 20 --nucleos 8 --salida results/curvas
+    --semillas 8 --sondas 20 --nucleos 8 --rapido --salida results/curvas
+trafico graficar results/curvas --mejor                  # la mejor velocidad, con costo en MXN
 trafico graficar results/curvas --x flujo --serie trazado --comparar 120 130
 ```
+
+Las sondas van por defecto de 90 a 150 km/h, de 10 en 10 (`--velocidades` para otras).
 
 - Se puede barrer **cualquier parámetro** (`--barrer nombre=v1,v2,...`, repetible: se combinan todos). Nombres
   cortos: `flujo`, `longitud`, `vehiculos`, `modo`, `trazado`, `relieve`, `camiones`, `sigma`, `v_media`,
@@ -130,7 +138,11 @@ trafico graficar results/curvas --x flujo --serie trazado --comparar 120 130
 - Datos crudos: `corridas.csv` (resumen del tráfico de fondo por corrida), `sondas.csv` (cada sonda) y
   `viajes.csv` (cada vehículo de cada corrida, para analizarlo después; `--sin-viajes` lo apaga). Qué es cada
   columna: [docs/datos.md](docs/datos.md).
-- `graficar` genera tablas con media ± IC 95 % y gráficas sin volver a simular.
+- `graficar` genera tablas con media ± IC 95 % y gráficas sin volver a simular. Con `--mejor` pone en la balanza
+  tiempo, combustible, CO2 y riesgo (ver abajo); `--precio valor_tiempo_h=150` cambia un precio sin volver a
+  correr nada.
+- `--trayectorias 1` guarda además la posición de cada vehículo cada segundo (tipo NGSIM, un archivo por
+  corrida; `--solo-sondas` para solo las sondas). Son archivos grandes.
 
 ## Resultados fase 3: modelo realista (20 km, 8 réplicas)
 
@@ -319,6 +331,15 @@ La dispersión de velocidades, el umbral para rebasar y la aceleración son los 
   calentamiento. Se usan **números aleatorios comunes**: la misma semilla da el mismo tráfico de fondo (y la
   misma carretera) y las mismas horas de entrada, y solo cambia la velocidad de la sonda. Así la diferencia
   entre velocidades se mide sonda con sonda (emparejada) y no se pierde en el ruido.
+- **Combustible y CO2** (solo se registran): en cada paso, la potencia en la rueda (VSP de Jiménez-Palacios, con
+  la aceleración y la pendiente) y el consumo con una línea de Willans (ralentí + potencia / eficiencia), con
+  coeficientes de auto de gasolina y de tractocamión diésel. Un auto en llano gasta 5.7, 6.8 y 7.5 L/100 km a
+  100, 120 y 130 km/h. CO2 de la EPA. Detalle en [docs/datos.md](docs/datos.md).
+- **Riesgo**, con tres medidas que no se mezclan: el modelo potencia (Nilsson; exponentes rurales de Elvik:
+  muertos ∝ v^4.1), la curva individual de Kloeden (según cuánto se aleja uno de la velocidad del tráfico) y lo
+  que mide el propio simulador (TTC, conflictos, sustos, choques).
+- **Costo en MXN** de cada viaje = tiempo × valor del tiempo + combustible + CO2 + accidentes esperados, con
+  precios bajo / medio / alto que son supuestos y se pueden cambiar (`src/trafico/costos.py`).
 - **Retraso** = tiempo de viaje − tiempo en vía libre. Con curvas, el tiempo libre es el de un vehículo solo
   por esa misma carretera (frenando en las curvas), así que el retraso mide solo lo que cuesta el tráfico.
 
@@ -326,10 +347,12 @@ La dispersión de velocidades, el umbral para rebasar y la aceleración son los 
 
 Sin intersecciones ni clima; los conductores no cambian su velocidad deseada durante el viaje; las curvas se
 modelan por su radio y la visibilidad con un despeje lateral fijo; las crestas de las lomas no tapan la vista
-(solo las curvas y los vehículos de delante); no hay carriles de ascenso para camiones. En el modelo simple
+(solo las curvas y los vehículos de delante); hay carriles de rebase 2+1 pero no carriles de ascenso sobre
+el acotamiento; después de un choque los vehículos siguen (no se modela el accidente ni el cierre de la vía). En el modelo simple
 (por defecto) todos los vehículos son autos iguales salvo la velocidad deseada, el cambio de carril es
 instantáneo y no hay pendientes ni señales; `--realista` añade camiones, conductores distintos, cambio de carril
-lento, rebase en cadena y tiempo de reacción. Los parámetros no están calibrados con datos reales, así que los
+lento, rebase en cadena, tiempo de reacción, asomarse y aceptación de hueco con logit. Los coeficientes del logit,
+del consumo y los precios son supuestos documentados en [docs/datos.md](docs/datos.md). Los parámetros no están calibrados con datos reales, así que los
 resultados son cualitativos. El siguiente paso es importar trazados reales (GPX/OpenStreetMap, con curvas y
 pendientes) y calibrar con aforos y velocidades medidas.
 
