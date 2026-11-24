@@ -3,7 +3,8 @@
 ¿Qué velocidad conviene en una carretera de un carril por sentido? ¿Cuánto tiempo se ahorra de verdad al ir más
 rápido, y a cambio de cuánto combustible, CO2 y riesgo? (Respuesta corta: la más rápida siempre llega antes, pero
 con los precios supuestos conviene ir a 90-100 km/h salvo que tu hora valga más de ~350 MXN; ver la
-[fase 4](#resultados-fase-4-qué-velocidad-conviene)).
+[fase 4](#resultados-fase-4-qué-velocidad-conviene)). Para empezar a usarlo, el
+[tutorial](#tutorial-de-cero-a-qué-velocidad-me-conviene).
 
 Simulación por pasos de tiempo de una carretera con **un carril por sentido**. Cada vehículo tiene
 una **velocidad deseada fija** y busca mantenerla. Si alcanza a uno más lento, frena y lo sigue; solo
@@ -147,6 +148,146 @@ Las sondas van por defecto de 90 a 150 km/h, de 10 en 10 (`--velocidades` para o
   correr nada.
 - `--trayectorias 1` guarda además la posición de cada vehículo cada segundo (tipo NGSIM, un archivo por
   corrida; `--solo-sondas` para solo las sondas). Son archivos grandes.
+
+## Tutorial: de cero a "¿qué velocidad me conviene?"
+
+Diez pasos con ejemplos que corren en segundos (carretera de 10 km, pocas réplicas). Para resultados serios,
+usa 20 km y 8 semillas como en las campañas de abajo. Supone que ya instalaste el proyecto
+([Instalación](#instalación-en-cualquier-pc)) y activaste el entorno (`source .venv/bin/activate`).
+
+**1. Una corrida para ver qué sale.** Tres sondas que quieren ir a 130 km/h entre tráfico de 200 veh/h:
+
+```bash
+trafico corrida --longitud 10000 --flujo 200 --vel-sonda 130 --sondas 3 --salida results/tut_corrida
+```
+
+```
+  vehículos que salieron: 117  retraso medio: 14.4 s  rebases: 20 (abortados 0)  colisiones: 0
+  sondas a 130 km/h: tiempo 335 s, retraso 57.9 s, rebases 0.7, alcances 1.0
+```
+
+En `results/tut_corrida/` quedan `viajes.csv` (un renglón por vehículo, columnas en
+[docs/datos.md](docs/datos.md)), `eventos.csv`, `fotos.csv` y gráficas como `espacio_tiempo.png`. La sonda
+quería tardar 277 s (10 km a 130) y tardó 335: perdió 58 s detrás de otros.
+
+**2. Verlo en movimiento** (opcional, necesita `pip install -e ".[anim]"`):
+
+```bash
+trafico animar --realista --param cada_2mas1=3000 --longitud 8000
+```
+
+Sin ventana, `--captura imagen.png --captura-en 400` guarda una imagen del segundo 400.
+
+**3. Muchas corridas: una campaña.** Compara 100 y 300 veh/h, con sondas de 90 a 150 km/h (las velocidades
+por defecto) y 4 réplicas:
+
+```bash
+trafico campana --longitud 10000 --barrer flujo=100,300 --semillas 4 --sondas 10 --nucleos 8 \
+    --salida results/tut_campana        # añade --rapido si instalaste PyPy (scripts/instalar_pypy.sh)
+```
+
+Son 56 corridas (~30 s con 8 núcleos). Si se corta, el mismo comando la reanuda.
+
+**4. La mejor velocidad.**
+
+```bash
+trafico graficar results/tut_campana --mejor
+```
+
+```
+100 veh/h · precios medio: mejor 90 km/h (29.6 ± 0.0 MXN; no se distingue de 90-90 km/h)
+300 veh/h · precios medio: mejor 90 km/h (29.4 ± 0.1 MXN; no se distingue de 90-150 km/h)
+...
+```
+
+En `results/tut_campana/graficas/` revisa primero `mejor_ganancia.png` (cuánto se gana contra ir a 100),
+`mejor_valor_equilibrio.png` (cuánto tendría que valer tu hora para que convenga ir más rápido) y
+`mejor_partes__*.png` (de qué se compone el costo). Los números están en `mejor_por_velocidad.csv` y
+`mejor_velocidad.csv`.
+
+**5. ¿Y si mi tiempo vale más?** Los precios se aplican después de simular: cambiarlos no obliga a correr nada
+otra vez.
+
+```bash
+trafico graficar results/tut_campana --mejor --precios medio --precio valor_tiempo_h=600
+```
+
+```
+100 veh/h · precios medio: mejor 120 km/h (79.0 ± 0.1 MXN; no se distingue de 120-140 km/h)
+300 veh/h · precios medio: mejor 150 km/h (83.6 ± 3.1 MXN; no se distingue de 130-150 km/h)
+```
+
+Precios que se pueden cambiar (`src/trafico/costos.py`): `valor_tiempo_h`, `gasolina_l`, `diesel_l`, `co2_t`,
+`accidentes_vkm`, `v_ref_kmh` y `riesgo` (`nilsson` o `kloeden`).
+
+**6. Comparar dos velocidades bien.** Como cada semilla da el mismo tráfico a todas las velocidades, la
+diferencia se mide semilla por semilla:
+
+```bash
+python .claude/skills/analisis-trafico/scripts/comparar.py results/tut_campana --a 100 --b 130 --campos tiempo_viaje litros
+```
+
+```
+combinación             campo              a        b − a    IC 95 %  ¿distinto de 0?
+flow_per_hour=100.0     tiempo_viaje     364.575  -64.555     8.975  sí
+flow_per_hour=100.0     litros             0.560    0.134     0.028  sí
+flow_per_hour=300.0     tiempo_viaje     396.755  -13.075    20.399  no
+```
+
+A 100 veh/h, ir a 130 ahorra 65 ± 9 s y gasta 0.13 L más. A 300 veh/h, con 4 réplicas, la diferencia no se
+distingue de cero: hacen falta más semillas (`--semillas 8` en el mismo comando de la campaña amplía la que
+ya tienes).
+
+**7. Explorar los viajes de todos los vehículos.** Resume cualquier columna de `viajes.csv` por grupos, con la
+corrida como réplica:
+
+```bash
+python .claude/skills/analisis-trafico/scripts/resumir_viajes.py results/tut_campana --campo retraso \
+    --por flow_per_hour --filtro sonda=0 viaje_completo=1 v_sonda=130
+```
+
+```
+  100.0        8.012 ±  1.355   (4 corridas, 483 viajes)
+  300.0       32.194 ±  6.993   (4 corridas, 1460 viajes)
+```
+
+Otras ideas: `--campo l_100km --por clase` (autos contra camiones), `--campo t_carril_contrario --por conductor`.
+
+**8. "¿Qué pasa si...?": barrer cualquier parámetro.** Por ejemplo, ¿ayudan los carriles de rebase 2+1 en el
+modelo realista?
+
+```bash
+trafico campana --realista --longitud 10000 --barrer cada_2mas1=0,3000 --velocidades 100 130 \
+    --semillas 4 --sondas 10 --nucleos 8 --rapido --salida results/tut_2mas1
+python .claude/skills/analisis-trafico/scripts/comparar.py results/tut_2mas1 --a 100 --b 130 --campos tiempo_viaje
+```
+
+```
+passing_every=0.0        tiempo_viaje   388.820   -19.330   12.805  sí
+passing_every=3000.0     tiempo_viaje   379.105   -29.885   12.263  sí
+```
+
+Con un tramo 2+1 cada 3 km, todos tardan menos (379 contra 389 s a 100 km/h) y querer ir a 130 rinde más (30
+contra 19 s). Se puede barrer cualquier parámetro de la tabla del [comportamiento
+realista](#comportamiento-realista-fases-3-y-4) (`camiones`, `relieve`, `trazado`, `reaccion`, `asomarse`,
+`rebase_logit`...).
+
+**9. Trayectorias segundo a segundo** (tipo NGSIM, para análisis propios):
+
+```bash
+trafico corrida --longitud 5000 --flujo 200 --sondas 2 --trayectorias 1 --solo-sondas --salida results/tut_tray
+```
+
+`trayectorias.csv` trae, cada segundo, la posición, el carril, la velocidad, la aceleración, quién va delante
+y detrás, el hueco y el headway.
+
+**10. Pedirle el análisis a Claude.** En este repo hay una skill, `analisis-trafico` (`.claude/skills/`), con las
+reglas para no equivocarse con estos datos (la réplica es la semilla, comparar emparejando, eventos raros por
+veh-km, separar lo simulado de lo supuesto) y para hacer las gráficas. En Claude Code basta con pedir, por
+ejemplo: *"con results/f4_camiones_relieve, ¿cuánto tiempo pierden los autos detrás de camiones en montaña y
+cuánto cambia con la velocidad deseada?"*. Para consultas SQL rápidas sobre los CSV grandes se puede instalar
+además `duckdb-skills` (`/plugin marketplace add duckdb/duckdb-skills` y
+`/plugin install duckdb-skills@duckdb-skills`).
 
 ## Resultados fase 4: ¿qué velocidad conviene?
 
