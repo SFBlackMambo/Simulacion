@@ -167,7 +167,7 @@ F018 camiones (4h), F019 cambio de carril gradual (4h, riesgo A), F020 rebase en
 
 # Plan fase 4: datos de viajes, rebase calibrado y la mejor velocidad
 
-**Creado**: 2026-11-22 | **Esfuerzo**: ~45h | **Complejidad**: Compleja | **Estado**: APROBADO (2026-11-22)
+**Creado**: 2026-11-22 | **Esfuerzo**: ~45h | **Complejidad**: Compleja | **Estado**: TERMINADO (2026-11-23)
 
 ## 1. Objetivo
 **Meta**: responder qué velocidad deseada conviene más en una carretera de dos carriles, poniendo en la balanza el tiempo que se gana contra el combustible, el CO2 y el riesgo. Además, guardar los datos completos de cada viaje para que el usuario los analice por su cuenta.

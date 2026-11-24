@@ -355,3 +355,9 @@
 - `scripts/resumen_fase4.py --docs docs`: tablas Markdown y CSV por campaña en docs/ (f4_*_resumen.csv, f4_*_mejor_*.csv) y gráficas elegidas.
 - `graficar --mejor`: gráficas pequeñas (una por valor del segundo parámetro) cuando hay varios barridos; valor del tiempo de equilibrio (con y sin accidentes, también para 90 contra 100).
 - Hallazgo principal: con los precios supuestos la mejor velocidad es 90 km/h casi siempre; solo en montaña con camiones sube a 110 (empate de 90 a 120). Ir a 130 en vez de 100 conviene solo si la hora vale más de ~300-460 MXN (200-270 sin contar accidentes).
+
+---
+
+## F038 - 2026-11-23
+- README con el nuevo enfoque: "Resultados fase 4: ¿qué velocidad conviene?" (ganancia contra 100 y por cada +10, lo que cuesta cada velocidad con las tres medidas de riesgo por separado, la mejor velocidad por escenario y el valor de la hora de equilibrio, rebase calibrado y 2+1, y los supuestos). Los resultados de 120 contra 130 de las fases 1 a 3 pasan a un anexo. Tabla del comportamiento realista, campañas, cómo funciona, supuestos, reproducir y estructura al día.
+- Fase 4 terminada: 40/40 features verificadas.

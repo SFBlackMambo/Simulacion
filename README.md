@@ -1,6 +1,9 @@
 # Simulación de tráfico en carretera de dos carriles
 
-¿Cuánto tiempo se ahorra de verdad al ir más rápido en una carretera de un carril por sentido?
+¿Qué velocidad conviene en una carretera de un carril por sentido? ¿Cuánto tiempo se ahorra de verdad al ir más
+rápido, y a cambio de cuánto combustible, CO2 y riesgo? (Respuesta corta: la más rápida siempre llega antes, pero
+con los precios supuestos conviene ir a 90-100 km/h salvo que tu hora valga más de ~350 MXN; ver la
+[fase 4](#resultados-fase-4-qué-velocidad-conviene)).
 
 Simulación por pasos de tiempo de una carretera con **un carril por sentido**. Cada vehículo tiene
 una **velocidad deseada fija** y busca mantenerla. Si alcanza a uno más lento, frena y lo sigue; solo
@@ -62,7 +65,8 @@ Guarda en la carpeta de salida:
 
 - `viajes.csv`: un renglón por vehículo, con su velocidad deseada, tiempo de viaje, tiempo libre, retraso,
   rebases hechos, veces que lo rebasaron, **alcances** (veces que tuvo que frenar por alguien), tiempo lento
-  y espera para entrar.
+  y espera para entrar; además headway, tiempo en el carril contrario, TTC, conflictos, litros, CO2 y choques
+  (ver [docs/datos.md](docs/datos.md)).
 - `eventos.csv`: cada rebase iniciado, completado o abortado (instante y posición).
 - `fotos.csv`: posición y velocidad de todos los vehículos cada 5 s (`--fotos`).
 - `config.json` (para repetirla) y `resumen.json`.
@@ -88,7 +92,7 @@ Controles: `Espacio` pausa, `+`/`-` velocidad (×1 a ×100), rueda o `Z`/`X` zoo
 `S` seguir a la sonda, `Tab` otra sonda, clic en el mapa para ir a un punto, `R` reiniciar,
 `F11` pantalla completa, `Esc` salir.
 
-### Comportamiento realista (fase 3)
+### Comportamiento realista (fases 3 y 4)
 
 Todo esto viene **apagado por defecto** (así los resultados de las fases 1 y 2 se reproducen exactamente).
 `--realista` lo enciende con valores razonables (desde la fase 4 incluye asomarse y la aceptación de hueco con
@@ -144,12 +148,135 @@ Las sondas van por defecto de 90 a 150 km/h, de 10 en 10 (`--velocidades` para o
 - `--trayectorias 1` guarda además la posición de cada vehículo cada segundo (tipo NGSIM, un archivo por
   corrida; `--solo-sondas` para solo las sondas). Son archivos grandes.
 
-## Resultados fase 3: modelo realista (20 km, 8 réplicas)
+## Resultados fase 4: ¿qué velocidad conviene?
+
+La pregunta ya no es solo "120 o 130". Ahora se compara toda la gama de velocidades deseadas, de **90 a 150 km/h**
+de 10 en 10, poniendo en la balanza **el tiempo que se gana** contra **el combustible, el CO2 y el riesgo**.
+Se corrieron otra vez las campañas de las fases 1 a 3, más dos nuevas del rebase calibrado y de carriles 2+1:
+3,248 corridas de 20 km (salvo la de distancia), 8 réplicas, 20 sondas por corrida y los viajes de todos los
+vehículos guardados (`scripts/campanas_fase4.sh`, ~1 h con 15 núcleos y PyPy). Tablas completas en
+`docs/f4_*_resumen.csv` y `docs/f4_*_mejor_*.csv`.
+
+### 1. La más rápida siempre llega antes, pero cada paso gana menos (recta de 20 km, modelo simple)
+
+![Tiempo ganado contra 100 km/h](docs/f4_ganancia_vs_100.png)
+
+Tiempo de viaje de la sonda a 200 veh/h por sentido: 815, 767, 742, 725, 707, 694 y 680 s a 90, 100, …, 150
+km/h. Cada paso de +10 km/h ahorra 48, 25, 17, 18, 13 y 14 s: después de 110 el tráfico se come casi todo.
+
+| Flujo por sentido | 100 → 120 | 100 → 130 | 100 → 150 | Velocidad media real queriendo ir a 130 |
+|---:|---:|---:|---:|---:|
+| Vía libre (ideal) | 120 s | 166 s | 240 s | 130 km/h |
+| 100 veh/h | 93 ± 4 s | 126 ± 6 s | 171 ± 5 s | 119 km/h |
+| 200 veh/h | 42 ± 6 s | 60 ± 7 s | 87 ± 7 s | 102 km/h |
+| 300 veh/h | 19 ± 5 s | 25 ± 5 s | 44 ± 8 s | 94 km/h |
+| 450 veh/h | 7 ± 4 s | 12 ± 5 s | 18 ± 5 s | 89 km/h |
+
+![Lo que gana cada paso](docs/f4_ganancia_paso.png)
+
+### 2. Lo que cuesta ir más rápido (200 veh/h, recta)
+
+| Velocidad deseada | 90 | 100 | 110 | 120 | 130 | 140 | 150 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Tiempo de viaje (s) | 815 | 767 | 742 | 725 | 707 | 694 | 680 |
+| Combustible (L/100 km) | 5.1 | 5.4 | 5.6 | 5.7 | 6.0 | 6.2 | 6.5 |
+| Riesgo de muertos, modelo potencia (× a 100 km/h de media) | 0.60 | 0.78 | 0.90 | 0.99 | 1.10 | 1.20 | 1.30 |
+| Riesgo individual de Kloeden (× ir con el tráfico) | 0.72 | 1.03 | 1.32 | 1.58 | 1.98 | 2.38 | 2.87 |
+| Tiempo en el carril contrario (s por viaje) | 4 | 10 | 19 | 30 | 41 | 49 | 56 |
+
+- **Las tres medidas de riesgo suben**, y no se mezclan entre sí. El modelo potencia usa la velocidad media del
+  viaje (que sube poco: de 88 a 107 km/h). La de Kloeden mide cuánto se aleja uno del tráfico de fondo (que va a
+  ~95 km/h). La del simulador es lo que la sonda pasa en el carril contrario: de 4 s a casi 1 minuto por viaje.
+- En el modelo realista, el **8 % de las sondas a 140-150 km/h tuvo que frenar de emergencia**, contra 0 % a
+  100 km/h.
+
+![De qué se compone el costo](docs/f4_partes_costo_200.png)
+
+### 3. La mejor velocidad depende de cuánto vale tu tiempo
+
+El costo de cada viaje en MXN = tiempo × valor del tiempo + combustible + CO2 + accidentes esperados. Los precios
+son **supuestos** (tres escenarios, ver [docs/datos.md](docs/datos.md)). Con los tres escenarios, y en casi
+todas las carreteras, **la velocidad de menor costo es 90 km/h**. El tiempo que se gana no paga el combustible y,
+sobre todo, el riesgo extra.
+
+Como los precios son lo más incierto, la medida más útil es la inversa: **¿cuánto tendría que valer una hora (por
+vehículo) para que ir más rápido salga a cuenta?**
+
+![Valor de la hora de equilibrio](docs/f4_valor_equilibrio.png)
+
+| Carretera (20 km) | Gana 100 → 130 | Conviene ir a 130 y no a 100 si tu hora vale más de… | …contando solo combustible y CO2 | Mejor velocidad (precios medios) |
+|---|---:|---:|---:|---:|
+| Recta, 100 veh/h | 126 s | 438 MXN | 214 MXN | 90 |
+| Recta, 200 veh/h | 60 s | 370 MXN | 211 MXN | 90 |
+| Recta, 300 veh/h | 25 s | 349 MXN | 223 MXN | 90 |
+| Pocas curvas, 200 veh/h | 46 s | 365 MXN | 221 MXN | 90 |
+| Muchas curvas, 200 veh/h | 9 s | 614 MXN | 532 MXN | 90 |
+| Montaña, 200 veh/h | 2 s | 535 MXN | 518 MXN | 90 |
+| 40 km de recta, 200 veh/h | 140 s | 373 MXN | 226 MXN | 90 |
+| Realista, recta, 200 veh/h | 50 s | 361 MXN | 198 MXN | 90 |
+| Realista, montañoso, 10 % camiones | 27 s | 210 MXN | 75 MXN | **110** (90-120) |
+| Realista, montañoso, 25 % camiones | 11 s | 202 MXN | 108 MXN | **110** (100-150) |
+| Realista con 2+1 cada 5 km, 350 veh/h | 30 s | 400 MXN | 270 MXN | 90 |
+
+(Entre paréntesis: velocidades cuyo costo no se distingue del mínimo, con la diferencia emparejada por semilla.)
+
+**Conclusiones**
+- **Llega antes el que va más rápido, siempre**, pero el ahorro se agota: en una recta con tráfico moderado
+  (200 veh/h), pasar de 100 a 130 ahorra 1 minuto en 20 km, y de 130 a 150, 27 s más.
+- **Ir a 130 en lugar de 100 solo conviene si tu hora vale más de ~350-450 MXN** (en recta). Aun sin contar
+  accidentes, el combustible y el CO2 de más ya piden ~200 MXN por hora. Con los precios medios supuestos (100
+  MXN por vehículo y hora) conviene ir a 90-100.
+- **Con curvas o montaña, ir rápido casi no ahorra tiempo** (de 2 a 9 s) y aun así gasta más, por acelerar y
+  frenar entre curvas: el valor de equilibrio sube a ~480-680 MXN por hora.
+- **La excepción es la montaña con camiones** (modelo realista): ahí todos van detrás de los camiones en las
+  subidas, la velocidad real casi no cambia y el riesgo tampoco, así que querer ir un poco más rápido (110) gana
+  algunos segundos casi gratis. Con 25 % de camiones, ir a 100 sale incluso más barato que ir a 90, aun sin
+  valorar el tiempo (por eso el valor de equilibrio en 90 es negativo).
+
+![Valor de equilibrio en montaña](docs/f4_valor_equilibrio_montanoso.png)
+
+### 4. Rebase calibrado y carriles 2+1 (modelo realista, 200 veh/h)
+
+| Modelo de rebase | Gana 100 → 130 | Velocidad media a 130 |
+|---|---:|---:|
+| Criterio fijo y vista tapada fija (fase 3) | 13 ± 10 s | 94 km/h |
+| Criterio fijo y **se asoma** | 44 ± 10 s | 101 km/h |
+| **Logit** y vista tapada fija | 13 ± 11 s | 94 km/h |
+| Logit y se asoma (el realista de ahora) | 50 ± 11 s | 102 km/h |
+
+- **Asomarse es lo que más cambia el resultado**: con la regla fija de la fase 3, detrás de un auto a menos de 2 s
+  solo se veían 500 m del carril contrario. Con la línea de visión, quien se asoma ve todo detrás de un auto (no
+  así detrás de un camión), rebasa más y la ganancia de ir rápido se multiplica por más de tres.
+- **El logit** (aceptar huecos con una probabilidad, distinta para cada conductor) sube un poco los rebases, pero
+  trae sustos: de 2 a 11 vehículos por corrida frenan de emergencia, casi siempre el que viene de frente cuando
+  alguien rebasó con un hueco justo. En 13.5 millones de veh-km del modelo realista hubo **3 choques, todos con el
+  logit** (unos 0.2 por millón de veh-km). Con el criterio fijo, 0.
+- **Carriles de rebase 2+1** (un tramo de 1.5 km cada 5 km, alternando el sentido): a 350 veh/h la ganancia de ir
+  a 130 pasa de 21 ± 10 a 30 ± 6 s y la de 150, de 25 a 38 s. Sobre todo mejora para todos: los rebases por
+  vehículo pasan de 0.36 a 0.76 y el retraso medio del tráfico de fondo baja de 87 a 76 s (de 53 a 46 s a
+  200 veh/h). Es una mejora de la carretera más que de la velocidad.
+
+![Ganancia con y sin carriles 2+1](docs/f4_ganancia_2mas1_350.png)
+
+**Ojo con los supuestos.** El costo de los accidentes por veh-km, los exponentes del modelo potencia (de estudios
+de flujos, no de un vehículo), la curva de Kloeden (medida en Australia, entre −10 y +30 km/h de diferencia), los
+coeficientes del logit y del consumo son supuestos razonables pero **no están calibrados para México**. Se pueden
+cambiar sin volver a simular: `trafico graficar results/f4_flujo --mejor --precio valor_tiempo_h=250`. Lo robusto
+es la forma: la más rápida llega antes con ganancias cada vez menores, y el combustible y el riesgo suben más
+rápido que el tiempo que se gana.
+
+## Anexo: 120 contra 130 km/h (fases 1 a 3)
+
+Resultados de las fases anteriores, que comparaban solo 120 y 130 km/h. Los de la fase 3 son del modelo realista
+**antes** de asomarse y del logit (con la vista tapada fija); con el realista de ahora la ganancia es mayor (ver
+arriba).
+
+### Fase 3: modelo realista (20 km, 8 réplicas)
 
 Con `--realista` se suman camiones, cambio de carril de 3 s, rebase en cadena, visión tapada, conductores
 distintos con impaciencia y 1 s de reacción. En las 352 corridas de estas campañas hubo **0 colisiones**.
 
-### ¿Qué pieza pesa más? (recta, 200 veh/h, ganancia 120 → 130 km/h)
+#### ¿Qué pieza pesa más? (recta, 200 veh/h, ganancia 120 → 130 km/h)
 
 ![Descomposición](docs/descomposicion_realista.png)
 
@@ -170,7 +297,7 @@ ve nada; detrás de un auto a menos de 2 s se ven 500 m), y en la realidad los c
 asomarse. Es el parámetro que más conviene medir con datos reales.
 Tabla completa en `docs/descomposicion_realista.csv` (`python scripts/descomponer_realista.py`).
 
-### Camiones y pendientes (modelo realista, 200 veh/h)
+#### Camiones y pendientes (modelo realista, 200 veh/h)
 
 Retraso medio de cada vehículo en 20 km:
 
@@ -191,7 +318,7 @@ Retraso medio de cada vehículo en 20 km:
   ±9 s): estar atrás de un camión en subida cuesta casi lo mismo vayas a la velocidad que vayas. Con relieve,
   además, la ganancia ideal baja de 46 a ~34 s porque en las subidas fuertes un auto no sostiene 130.
 
-### Rebase en cadena (modelo realista, recta)
+#### Rebase en cadena (modelo realista, recta)
 
 | Flujo | Uno a uno | En cadena |
 |---:|---:|---:|
@@ -202,16 +329,16 @@ Dejar que se vayan varios a la vez ayuda un poco, pero la diferencia no es concl
 segundo de la fila pocas veces ve lo suficiente para seguir al primero: el 8 % de los rebases fueron en cadena
 a 200 veh/h y el 19 % a 350 veh/h (con más tráfico hay más filas largas esperando el mismo hueco).
 
-### Sustos
+#### Sustos
 
 En el modelo realista aparecen algunos frenados de emergencia sin choque: de 0.2 a 0.5 por corrida en promedio
 (0.15 en plano, 0.5 en lomerío, 0.8 en montaña; 0 con muchas curvas, porque casi no se rebasa). Casi siempre es
 alguien que termina un rebase largo y, al volver a su carril, el que viene de frente tiene que frenar: casos
 realistas de "se metió justo". En el modelo simple no hay.
 
-## Resultados fase 2: tipo de carretera y distancia
+### Fase 2: tipo de carretera y distancia
 
-### ¿Y si la carretera tiene curvas? (20 km, 8 réplicas, cada una con un trazado distinto)
+#### ¿Y si la carretera tiene curvas? (20 km, 8 réplicas, cada una con un trazado distinto)
 
 Tiempo que se gana al ir a 130 en vez de 120 km/h (media ± IC 95 %; entre paréntesis, lo que se ganaría en vía libre):
 
@@ -237,7 +364,7 @@ Tiempo que se gana al ir a 130 en vez de 120 km/h (media ± IC 95 %; entre paré
   frente a 48 s en recta). En las curvas todos van a la misma velocidad, así que importa menos que unos
   quieran ir más rápido que otros.
 
-### ¿Importa la distancia? (carretera recta, 8 réplicas)
+#### ¿Importa la distancia? (carretera recta, 8 réplicas)
 
 | Longitud | 100 veh/h | 200 veh/h | 300 veh/h | Ideal |
 |---:|---:|---:|---:|---:|
@@ -259,7 +386,7 @@ Tiempo que se gana al ir a 130 en vez de 120 km/h (media ± IC 95 %; entre paré
 Tablas completas en `docs/ganancia_trazado.csv` y `docs/ganancia_distancia.csv`.
 En las 480 corridas de la fase 2 hubo 0 colisiones (2 vehículos usaron el frenado de emergencia).
 
-## Resultados fase 1: carretera recta de 20 km (8 réplicas)
+### Fase 1: carretera recta de 20 km (8 réplicas)
 
 Tiempo que se gana al ir a 130 km/h en lugar de 120 km/h (media ± IC 95 %):
 
@@ -282,7 +409,7 @@ Tiempo que se gana al ir a 130 km/h en lugar de 120 km/h (media ± IC 95 %):
 - **Sin poder rebasar, la ventaja desaparece** (0.1 s a 200 veh/h): quedas atrapado detrás del más lento.
   Todo el beneficio de ir más rápido viene de los rebases.
 
-### Sensibilidad (200 veh/h por sentido, 6 réplicas)
+#### Sensibilidad (200 veh/h por sentido, 6 réplicas)
 
 Ganancia 120 → 130 km/h según el parámetro modificado (ver `docs/sensibilidad.csv`):
 
@@ -386,6 +513,14 @@ trafico campana --barrer longitud=5000,10000,20000,40000 --barrer flujo=100,200,
 Las campañas de la fase 2 tardan unos 12 minutos con 15 núcleos (unas 5 veces menos con `--rapido`). Todo se guarda en `results/` (ignorada por git).
 
 ```bash
+# Fase 4: la mejor velocidad (todas las campañas otra vez, de 90 a 150 km/h, y las del rebase calibrado)
+bash scripts/campanas_fase4.sh
+python scripts/resumen_fase4.py --docs docs
+```
+
+Las campañas de las fases 1 a 3 (resultados del anexo):
+
+```bash
 # Fase 3: modelo realista
 trafico campana --realista --barrer camiones=0,0.1,0.25 --barrer relieve=plano,lomerio,montanoso --flujo 200 \
     --velocidades 120 130 --semillas 8 --sondas 20 --nucleos 15 --salida results/f3_camiones_relieve
@@ -400,9 +535,10 @@ trafico campana --realista --barrer overtaking.convoy=0,1 --barrer flujo=200,350
 ```
 src/trafico/  vehicle, fleet (camiones), drivers (conductores), idm (IDM y HDM), road, arrivals,
               overtaking, geometry (curvas, visibilidad, pendientes, señales), slopes, simulation,
-              recorder, single, campaign, analysis, plots, plots_explore, animation, menu, cli, config
+              recorder, single, campaign, analysis, plots, plots_explore, animation, menu, cli, config,
+              fuel (combustible y CO2), costos (riesgo y precios), mejor (la mejor velocidad)
 tests/        pruebas con pytest
-scripts/      run_experiment.py, sensitivity.py (fase 1)
+scripts/      run_experiment.py, sensitivity.py (fase 1), campanas_fase4.sh, resumen_fase4.py (fase 4)
 docs/         gráficas y tablas de resultados
 ```
 
