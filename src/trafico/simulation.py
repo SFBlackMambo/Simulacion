@@ -78,10 +78,15 @@ class ProbeResult:
     ttc_opp_min: float = float("inf")
     conflicts: int = 0  # episodios con TTC < 1.5 s (con el de delante y frente a frente)
     emergency: int = 0  # 1 si frenó de emergencia
+    length: float = 0.0  # lo que recorrió, m
 
     @property
     def delay(self) -> float:
         return self.travel_time - self.free_time
+
+    @property
+    def v_media_kmh(self) -> float:
+        return 3.6 * self.length / self.travel_time if self.travel_time > 0 else float("nan")
 
 
 @dataclass
@@ -246,6 +251,7 @@ def run_simulation(
             ttc_opp_min=p.ttc_opp_min,
             conflicts=p.conflicts_leader + p.conflicts_opp,
             emergency=int(p.emergency_steps > 0),
+            length=cfg.length,
         )
         for i, p in enumerate(probes)
     ]

@@ -287,3 +287,11 @@
 - viajes.csv: `litros`, `l_100km`, `co2_kg`. sondas.csv: `litros`, `co2_kg`, `t_carril_contrario`, `ttc_min_contrario`, `conflictos`, `frenado_emergencia`. corridas.csv: `l_100km_fondo`, `litros_sondas`.
 - Revisión: auto en llano 5.7 / 6.8 / 7.5 L/100 km a 100 / 120 / 130 (±15 % de los típicos 5.8 / 7.0 / 7.6); camión de 29 t a 90 km/h: 31 L/100 km. Supuestos documentados en docs/datos.md (sin verificar en línea).
 - Solo se registra; costo ~6 %. Verificado: 190 tests; huella idéntica.
+
+---
+
+## F031 - 2026-11-23
+- `src/trafico/costos.py`: riesgo con el modelo potencia (exponentes de Elvik 2009: 4.1 / 2.6 / 1.1) y la curva de Kloeden 2001 (rural), por separado; las medidas del simulador quedan en los CSV. `Precios` en MXN con escenarios bajo / medio / alto y `con_precios(...)` para cambiar cualquiera; `balance(...)` da tiempo, combustible, CO2, accidentes y total.
+- sondas.csv suma `v_media_kmh`; corridas.csv, `v_media_fondo` (para Kloeden).
+- Precios documentados como supuestos en docs/datos.md.
+- Verificado: 196 tests; huella idéntica.

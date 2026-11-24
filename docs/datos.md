@@ -116,3 +116,33 @@ de filas (~60 MB).
 | `hueco_m` | m | Distancia libre hasta el de delante (parachoques a parachoques) |
 | `headway_s` | s | Headway frente a frente con el de delante |
 | `id_seguidor` | — | Vehículo de detrás en su carril y sentido (vacío si no hay) |
+
+## Riesgo y costos (`src/trafico/costos.py`)
+
+Se calculan después de simular, a partir de `sondas.csv` o `viajes.csv`: cambiar un precio no obliga a volver a
+correr. El riesgo se reporta con tres medidas, por separado:
+
+| Medida | Qué es | Fuente |
+|---|---|---|
+| Modelo potencia | `(v / 100)^k`, con k = 4.1 (muertos), 2.6 (heridos graves), 1.1 (heridos leves), con la velocidad media del viaje | Nilsson 2004; exponentes rurales de Elvik 2009 |
+| Curva individual | `exp(0.07039·Δv + 0.0008617·Δv²)`, Δv = velocidad media del viaje − la del tráfico de fondo (km/h) | Kloeden, Ponte y McLean 2001 (rurales) |
+| Simulador | TTC mínimo, conflictos (TTC < 1.5 s), frenado de emergencia, tiempo en el carril contrario, choques | columnas de este diccionario |
+
+El modelo potencia se estimó para la velocidad media de todo el flujo; aplicado a un solo vehículo es una
+aproximación ("si todos fueran así"). La curva de Kloeden se midió entre −10 y +30 km/h, más o menos.
+
+Balance de un viaje (MXN) = horas × valor del tiempo + litros × precio + toneladas de CO2 × costo social +
+km × costo de los accidentes por veh-km × riesgo relativo (el del modelo potencia, con la parte de cada
+gravedad, o el de Kloeden). Precios por escenario:
+
+| Precio | Bajo | Medio | Alto | Nota |
+|---|---|---|---|---|
+| Valor del tiempo (por vehículo y hora) | 50 | 100 | 200 | ≈1.5 ocupantes; supuesto |
+| Gasolina (por L) | 22 | 24 | 27 | precio en México con tope de ~24 |
+| Diésel (por L) | 24 | 26 | 29 | |
+| CO2 (por t) | 1,000 | 2,000 | 3,800 | ≈ USD 51, 100 y 190 por t (IWG 2021, EPA 2023) a ~19 MXN/USD |
+| Accidentes (por veh-km a 100 km/h) | 0.25 | 0.50 | 1.00 | orden de magnitud: ~1.5 muertos por 100 M veh-km × valor de una vida de ~15 M MXN, × ~2 por heridos y daños; supuesto |
+
+Reparto del costo de los accidentes para el modelo potencia: 50 % muertos, 30 % heridos graves, 20 % leves.
+Todos son supuestos sin verificar en una fuente oficial mexicana (IMT/SCT): se pueden cambiar con
+`costos.con_precios("medio", valor_tiempo_h=150, riesgo="kloeden")`, o en `trafico graficar --mejor`.
