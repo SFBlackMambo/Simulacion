@@ -295,3 +295,14 @@
 - sondas.csv suma `v_media_kmh`; corridas.csv, `v_media_fondo` (para Kloeden).
 - Precios documentados como supuestos en docs/datos.md.
 - Verificado: 196 tests; huella idéntica.
+
+---
+
+## F032 - 2026-11-23
+- `overtaking.gap_logit` (alias `rebase_logit`): logit de aceptación de hueco con término propio de cada conductor (al estilo de Farah 2009/2010). U = −3 + 1·S + 0.05·Δv + 0.3·min atrapado + η. S = tiempo sobrante frente al contrario más cercano (o el supuesto al final de la visibilidad o el que podría entrar por el otro extremo). Coeficientes supuestos, documentados en docs/datos.md.
+- Sin piso por defecto (decisión del usuario); `piso_seguro=1` exige además el criterio de siempre.
+- Sorteos por hash splitmix64 de (semilla, vehículo, hueco): no consumen números aleatorios, cada conductor decide una vez por hueco, mismo resultado en CPython y PyPy.
+- Choques: ahora cada par cuenta una vez (antes cada paso encimados); columna `choques` en viajes y sondas, `veh_km` en corridas. Después del choque los dos siguen.
+- Estrés (15 km, 400 veh/h, 8 semillas, simple / realista / realista con curvas y montañoso): 0 choques sin piso; rebases +18 % (simple) y +11 % (realista); 41 / 4 / 6 vehículos con frenado de emergencia. Con piso, igual al criterio de siempre.
+- Todavía no entra en el preset realista (se decide junto con F033).
+- Verificado: 203 tests; huella idéntica (también en PyPy).

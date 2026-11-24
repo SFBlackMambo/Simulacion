@@ -24,7 +24,7 @@ CAMPOS_VIAJE = [
     "alcances", "t_lento", "t_espera_entrada", "frenado_emergencia", "clase", "rebases_en_cadena", "conductor",
     "v_media_kmh", "t_headway_2_5", "t_headway_3", "pct_tiempo_siguiendo", "t_carril_contrario",
     "ttc_min_lider", "ttc_min_contrario", "conflictos_lider", "conflictos_contrario",
-    "factor_limite", "potencia_w_kg", "lb_hp", "litros", "l_100km", "co2_kg",
+    "factor_limite", "potencia_w_kg", "lb_hp", "litros", "l_100km", "co2_kg", "choques",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n", "en_cadena"]
 CAMPOS_TRAYECTORIA = ["t", "id", "sentido", "x", "x_propio", "carril", "v_kmh", "a", "largo", "clase", "sonda",
@@ -72,6 +72,7 @@ def viaje(veh: Vehicle, free_time: float, length: float = 0.0) -> dict:
         "litros": round(veh.fuel_l, 4),
         "l_100km": round(veh.fuel_l * 100_000.0 / length, 3) if length else "",
         "co2_kg": round(veh.fuel_l * (veh.fuel or AUTO_FUEL).co2_kg_l, 4),
+        "choques": veh.crashes,
     }
 
 

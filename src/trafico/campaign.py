@@ -27,12 +27,12 @@ from .simulation import RunResult, SimConfig, run_simulation
 
 CAMPOS_SONDA = ["indice", "t_entrada", "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "t_lento",
                 "t_espera_entrada", "v_media_kmh", "litros", "co2_kg", "t_carril_contrario", "ttc_min_contrario", "conflictos",
-                "frenado_emergencia"]
+                "frenado_emergencia", "choques"]
 CAMPOS_CORRIDA = ["colisiones", "vehiculos_emergencia", "n_fondo", "retraso_fondo", "retraso_fondo_mediana",
                   "rebases_fondo", "alcances_fondo", "veces_rebasado_fondo", "t_lento_fondo",
                   "rebases_sondas", "alcances_sondas", "rebases_en_cadena_fondo", "camiones_fondo",
                   "retraso_camiones", "pct_siguiendo_fondo", "t_contrario_fondo", "conflictos_lider",
-                  "conflictos_contrario", "l_100km_fondo", "v_media_fondo", "litros_sondas", "con_viajes"]
+                  "conflictos_contrario", "l_100km_fondo", "v_media_fondo", "litros_sondas", "veh_km", "con_viajes"]
 
 
 def parse_sweep(texto: str) -> tuple[str, list]:
@@ -101,6 +101,8 @@ def _resumir(res: RunResult, viajes: bool) -> dict:
         "l_100km_fondo": _media(fondo, "l_100km"),
         "v_media_fondo": _media(fondo, "v_media_kmh"),
         "litros_sondas": _media(sondas, "litros"),
+        "veh_km": round(sum(t["tiempo_viaje"] * t["v_media_kmh"] / 3600.0 for t in res.trips
+                            if t["v_media_kmh"] != ""), 1),
     }
     probes = [{
         "indice": p.index, "t_entrada": round(p.t_entry, 2), "tiempo_viaje": round(p.travel_time, 3),
@@ -108,7 +110,7 @@ def _resumir(res: RunResult, viajes: bool) -> dict:
         "t_lento": round(p.t_slow, 2), "t_espera_entrada": round(p.t_wait_entry, 2),
         "v_media_kmh": round(p.v_media_kmh, 3), "litros": round(p.litros, 4), "co2_kg": round(p.co2_kg, 4), "t_carril_contrario": round(p.t_opposite, 2),
         "ttc_min_contrario": round(p.ttc_opp_min, 3) if np.isfinite(p.ttc_opp_min) else "",
-        "conflictos": p.conflicts, "frenado_emergencia": p.emergency,
+        "conflictos": p.conflicts, "frenado_emergencia": p.emergency, "choques": p.crashes,
     } for p in res.probes]
     return {"corrida": corrida, "sondas": probes, "viajes": res.trips if viajes else []}
 

@@ -44,6 +44,8 @@ ALIAS = {
     "agresivos": "drivers.share_aggressive",
     "impaciencia": "drivers.impatience_after",
     "reaccion": "reaction_time",
+    "rebase_logit": "overtaking.gap_logit",
+    "piso_seguro": "overtaking.gap_floor",
 }
 
 

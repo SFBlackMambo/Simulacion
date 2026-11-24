@@ -7,7 +7,7 @@ El cambio de carril es instantáneo.
 """
 
 from dataclasses import dataclass
-from math import inf
+from math import cos, exp, inf, log, pi, sqrt
 
 from .recorder import REBASE_ABORTO, REBASE_FIN, REBASE_INICIO
 from .slopes import AUTO_GRADES, accel_limit, uphill_speed
@@ -45,6 +45,18 @@ class OvertakeParams:
     braking_threshold: float = -1.0  # m/s²: "frenar fuerte"
     window_back: float = 300.0  # no rebasar si otro del mismo sentido rebasa en esta zona, m
     window_front: float = 600.0
+    # Aceptación de hueco probabilística (logit con heterogeneidad por conductor, al estilo de Farah
+    # et al. 2009 y Farah y Toledo 2010). Coeficientes supuestos (ver docs/datos.md):
+    #   U = b0 + b_spare·S + b_dv·Δv + b_wait·minutos atrapado + sigma·η,  P(acepta) = 1 / (1 + e^-U)
+    # S = tiempo sobrante (s) frente al contrario más cercano, Δv = lo que quiere ir por encima del
+    # de delante (km/h), η ~ N(0, 1) propio de cada conductor.
+    gap_logit: bool = False
+    gap_floor: bool = False  # con el logit: exigir además el criterio seguro de siempre
+    logit_b0: float = -3.0
+    logit_spare: float = 1.0  # por s de tiempo sobrante
+    logit_dv: float = 0.05  # por km/h
+    logit_wait: float = 0.3  # por minuto atrapado
+    logit_sigma: float = 1.0
 
 
 def _free_speed(v: float, v0: float, idm, step: float) -> float:
@@ -172,6 +184,8 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
     # el rebase más corto posible, no hay nada que calcular.
     vis = _visible(road, p, veh, chain[0], delante)
     f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
+    if p.gap_logit:
+        return _is_safe_logit(road, p, veh, chain, delante, vis, f_guard, idm, a_max)
     if vis < inf:
         t_min = p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
         if vis - p.v_unseen * (t_min + p.t_guard_unseen * f_guard) <= p.d_margin:
@@ -189,16 +203,31 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
             front = road.length - u.x
             if front + u.length >= veh.rear and front - min(u.v, u.v0) * tg_min <= x_end_min:
                 return False
+    plan = _maniobra(road, p, veh, chain, delante, idm, a_max)
+    if plan is None:
+        return False
+    T, x_end = plan
+    return _seguro_de_frente(road, p, veh, vis, f_guard, a_max, T, x_end)
+
+
+def _maniobra(road, p: OvertakeParams, veh: Vehicle, chain: list, delante: list, idm, a_max):
+    """(duración, posición final) del rebase, o None si no lo logra."""
     v_cap = min((u.v_des for u in delante), default=inf)  # no irá más rápido que el de delante
     t_pass = 0.0
     for other in chain:
         t = _time_to_clear(road, veh, other, p, idm, v_cap)
         if t == inf:
-            return False
+            return None
         t_pass = max(t_pass, t)
     # hasta volver del todo al carril propio (con tiempo de reacción, todo empieza un poco tarde)
     T = t_pass + p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
     x_end = veh.x + _distance(veh.v, veh.v0, T, a_max, idm, road, veh, v_cap) + p.d_margin
+    return T, x_end
+
+
+def _seguro_de_frente(road, p: OvertakeParams, veh: Vehicle, vis: float, f_guard: float, a_max: float,
+                      T: float, x_end: float) -> bool:
+    """Criterio seguro de siempre: el contrario (con la cota pesimista) llega después del margen."""
     T_guard = T + p.t_guard * f_guard
     for u in road.vehicles:
         if u is veh or u.direction == veh.direction:
@@ -220,6 +249,90 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
         if veh.x + vis - p.v_unseen * (T + p.t_guard_unseen * f_guard) <= x_end:
             return False
     return True
+
+
+# --- aceptación de hueco con logit (F032) ------------------------------------------------------
+_MASK = (1 << 64) - 1
+
+
+def _u01(*claves: int) -> float:
+    """Número uniforme en (0, 1) que depende solo de las claves (hash splitmix64).
+
+    No consume números de ningún generador: el mismo conductor ante el mismo hueco decide lo
+    mismo, y el resto de la simulación no cambia de números al encender el logit.
+    """
+    h = 0x9E3779B97F4A7C15
+    for k in claves:
+        h = ((h ^ (k & _MASK)) + 0x9E3779B97F4A7C15) & _MASK
+        h = ((h ^ (h >> 30)) * 0xBF58476D1CE4E5B9) & _MASK
+        h = ((h ^ (h >> 27)) * 0x94D049BB133111EB) & _MASK
+        h ^= h >> 31
+    return ((h >> 11) + 0.5) / (1 << 53)
+
+
+def eta_conductor(seed: int, veh: Vehicle) -> float:
+    """Término aleatorio N(0, 1) del conductor (0 para las sondas: son conductores normales)."""
+    if veh.probe:
+        return 0.0
+    u1, u2 = _u01(seed, veh.id, 1), _u01(seed, veh.id, 2)
+    return sqrt(-2.0 * log(u1)) * cos(2.0 * pi * u2)
+
+
+def _utilidad(road, p: OvertakeParams, veh: Vehicle, spare: float, f_guard: float, v_lider: float) -> float:
+    eta = veh.logit_eta
+    if eta is None:
+        eta = veh.logit_eta = eta_conductor(road.logit_seed, veh)
+    spare += p.t_guard * (1.0 - f_guard)  # agresivos e impacientes ven el hueco más grande
+    dv = max(0.0, veh.v_des - v_lider) * 3.6
+    return (p.logit_b0 + p.logit_spare * spare + p.logit_dv * dv + p.logit_wait * veh.t_stuck / 60.0
+            + p.logit_sigma * eta)
+
+
+def _sobrante(road, p: OvertakeParams, veh: Vehicle, vis: float, T: float, x_end: float):
+    """Tiempo sobrante (s) frente al contrario más cercano, a las velocidades que se ven, y cuál es.
+
+    Cuenta también el que podría entrar por el otro extremo y el que podría venir donde se acaba
+    la visibilidad (claves -1 y -2).
+    """
+    spare, gid = (road.length - x_end) / p.v_entry - T, -1
+    for u in road.vehicles:
+        if u.direction == veh.direction:
+            continue
+        front = road.length - u.x
+        if front + u.length < veh.rear:
+            continue  # ya se cruzó
+        s = (front - x_end) / max(u.v, 0.1) - T
+        if s < spare:
+            spare, gid = s, u.id
+    if vis < inf:
+        s = (veh.x + vis - x_end) / p.v_unseen - T
+        if s < spare:
+            spare, gid = s, -2
+    return spare, gid
+
+
+def _is_safe_logit(road, p: OvertakeParams, veh: Vehicle, chain: list, delante: list, vis: float,
+                   f_guard: float, idm, a_max: float) -> bool:
+    lider = chain[0]
+    # Descarte rápido: con la maniobra más corta posible el hueco solo puede ser mayor; si aun así
+    # la probabilidad es despreciable, no hace falta calcular la maniobra.
+    t_min = p.t_margin + p.t_lane_change + road.reaction_steps * road.dt
+    s_max, _ = _sobrante(road, p, veh, vis, t_min, veh.x + p.d_margin)
+    if _utilidad(road, p, veh, s_max, f_guard, lider.v) < -9.0:
+        return False
+    plan = _maniobra(road, p, veh, chain, delante, idm, a_max)
+    if plan is None:
+        return False
+    T, x_end = plan
+    geo = road.geometry
+    if geo is not None and veh.respects_no_pass and geo.no_pass_between(veh.direction, veh.x, x_end):
+        return False
+    if p.gap_floor and not _seguro_de_frente(road, p, veh, vis, f_guard, a_max, T, x_end):
+        return False
+    spare, gid = _sobrante(road, p, veh, vis, T, x_end)
+    u = _utilidad(road, p, veh, spare, f_guard, lider.v)
+    prob = 1.0 / (1.0 + exp(-u)) if u > -700 else 0.0
+    return _u01(road.logit_seed, veh.id, gid, 3) < prob
 
 
 def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) -> bool:

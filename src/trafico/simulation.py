@@ -78,6 +78,7 @@ class ProbeResult:
     ttc_opp_min: float = float("inf")
     conflicts: int = 0  # episodios con TTC < 1.5 s (con el de delante y frente a frente)
     emergency: int = 0  # 1 si frenó de emergencia
+    crashes: int = 0  # choques en que estuvo
     length: float = 0.0  # lo que recorrió, m
 
     @property
@@ -186,11 +187,14 @@ def build_road(cfg: SimConfig, seed: int, recorder: Recorder | None = None) -> R
         raise ValueError(f"modo desconocido {cfg.mode!r}; opciones: {MODOS}")
     seq = np.random.SeedSequence(seed)
     ss = seq.spawn(2)  # llegadas de cada sentido (mismos hijos que antes)
+    driver_seed = seq.spawn(1)[0]
+    truck_seed = seq.spawn(1)[0] if cfg.trucks.share > 0 else None
+    logit = cfg.overtaking is not None and cfg.overtaking.gap_logit
+    logit_seed = int(seq.spawn(1)[0].generate_state(1)[0]) if logit else 0
     road = Road(length=cfg.length, dt=cfg.dt, idm=cfg.idm, overtaking=cfg.overtaking, recorder=recorder,
                 geometry=geometry_from_config(cfg, seed), trucks=cfg.trucks, drivers=cfg.drivers,
-                driver_seed=seq.spawn(1)[0], truck_seed=seq.spawn(1)[0] if cfg.trucks.share > 0 else None,
-                reaction_time=cfg.reaction_time,
-                b_physical=cfg.b_physical)
+                driver_seed=driver_seed, truck_seed=truck_seed, reaction_time=cfg.reaction_time,
+                b_physical=cfg.b_physical, logit_seed=logit_seed)
     for direction, s in zip((1, -1), ss):
         if cfg.mode == "lleno":
             sampler = PoissonArrivals(0.0, cfg.v0_mean_kmh, cfg.v0_std_kmh, seed=s, trucks=cfg.trucks)
@@ -251,6 +255,7 @@ def run_simulation(
             ttc_opp_min=p.ttc_opp_min,
             conflicts=p.conflicts_leader + p.conflicts_opp,
             emergency=int(p.emergency_steps > 0),
+            crashes=p.crashes,
             length=cfg.length,
         )
         for i, p in enumerate(probes)

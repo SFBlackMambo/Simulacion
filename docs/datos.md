@@ -69,6 +69,7 @@ sin la clave de la corrida.
 | `litros` | L | Combustible gastado en el viaje (gasolina los autos, diésel los camiones; ver abajo) |
 | `l_100km` | L/100 km | `litros` por cada 100 km; vacío si no hizo el viaje completo |
 | `co2_kg` | kg | CO2 del escape: 2.348 kg/L de gasolina y 2.689 kg/L de diésel (EPA) |
+| `choques` | — | Choques en que estuvo (cada par de vehículos cuenta una vez; después del choque los dos siguen: no se modela lo que pasa después) |
 
 Notas: el headway y el TTC se miden respecto al vehículo de delante en el carril que se ocupa (mientras rebasa,
 el de delante en el carril contrario). Estas medidas solo se registran: no cambian la simulación.
@@ -77,7 +78,8 @@ el de delante en el carril contrario). Estas medidas solo se registran: no cambi
 `pct_tiempo_siguiendo`), `t_contrario_fondo` (s), y para todos los vehículos `conflictos_lider` y
 `conflictos_contrario` (totales de la corrida), `l_100km_fondo` (media del fondo) y `litros_sondas` (media
 por sonda). `sondas.csv` trae por sonda `litros`, `co2_kg`, `t_carril_contrario`, `ttc_min_contrario`,
-`conflictos` (con el de delante y frente a frente) y `frenado_emergencia`.
+`conflictos` (con el de delante y frente a frente), `frenado_emergencia` y `choques`. `corridas.csv` trae
+`veh_km` (km recorridos por los vehículos con viaje completo) para calcular choques por millón de veh-km.
 
 ### Combustible (`src/trafico/fuel.py`)
 
@@ -146,3 +148,29 @@ gravedad, o el de Kloeden). Precios por escenario:
 Reparto del costo de los accidentes para el modelo potencia: 50 % muertos, 30 % heridos graves, 20 % leves.
 Todos son supuestos sin verificar en una fuente oficial mexicana (IMT/SCT): se pueden cambiar con
 `costos.con_precios("medio", valor_tiempo_h=150, riesgo="kloeden")`, o en `trafico graficar --mejor`.
+
+## Aceptación de hueco con logit (`--param rebase_logit=1`)
+
+En lugar del criterio fijo ("el contrario llega al menos 6 s después de terminar, suponiendo que acelera"), el
+conductor acepta el hueco con probabilidad `P = 1 / (1 + e^-U)`, al estilo de Farah et al. (2009) y Farah y
+Toledo (2010), con un término propio de cada conductor:
+
+`U = b0 + b_spare·S + b_dv·Δv + b_wait·(minutos atrapado) + sigma·η`
+
+- `S` (s): tiempo sobrante frente al contrario más cercano: lo que tarda en llegar al punto donde termina la
+  maniobra, a la velocidad que lleva, menos la duración de la maniobra. También cuenta uno supuesto donde se
+  acaba la visibilidad (a 30 m/s) y uno que podría entrar por el otro extremo. Los agresivos e impacientes
+  suman `t_guard·(1 − factor)` (ven el hueco más grande).
+- `Δv` (km/h): cuánto quiere ir por encima del de delante. `η ~ N(0, 1)`, distinto para cada conductor (0 para
+  las sondas).
+- Valores (supuestos; los de Farah no se pudieron verificar): `b0 = −3`, `b_spare = 1/s`, `b_dv = 0.05`,
+  `b_wait = 0.3`, `sigma = 1`. Con ellos la mitad acepta un sobrante de 3 s (con Δv = 0) y casi nadie uno
+  negativo. Se cambian con `--param overtaking.logit_b0=...`, etc.
+- Cada conductor decide una sola vez ante cada hueco (el sorteo depende de la semilla, del vehículo y del
+  contrario que limita), así que no "vuelve a tirar los dados" cada segundo.
+- Sin piso de seguridad: si acepta un hueco malo, lo que lo salva es abortar y el frenado de emergencia.
+  Con `--param piso_seguro=1` se exige además el criterio de siempre.
+
+Estrés (15 km, 400 veh/h, 8 semillas, sondas a 130): sin piso, 0 choques. Los rebases suben de 0.39 a 0.46 por
+vehículo (simple) y de 0.22 a 0.24 (realista), con 41 y 4 vehículos con frenado de emergencia. Con piso queda
+igual al criterio de siempre.

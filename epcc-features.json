@@ -960,12 +960,13 @@
       "subtasks": [
         {
           "name": "Aceptación de hueco logit (Farah)",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 4
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T19:59:50-07:00"
     },
     {
       "id": "F033",

@@ -45,6 +45,7 @@ class Road:
         driver_seed=None,
         reaction_time: float = 0.0,
         b_physical: float = 0.0,
+        logit_seed: int = 0,
     ) -> None:
         self.length = length
         self.dt = dt
@@ -67,7 +68,9 @@ class Road:
         self.n_steps = 0
         self.vehicles: list[Vehicle] = []
         self.finished: list[Vehicle] = []
-        self.collisions = 0
+        self.collisions = 0  # choques: cada par de vehículos cuenta una vez
+        self._choques: set = set()
+        self.logit_seed = logit_seed  # semilla de la aceptación de hueco con logit (F032)
         self._pending: dict[int, deque[Vehicle]] = {1: deque(), -1: deque()}
         self._sources: dict[int, PoissonArrivals] = {}
         self._replacers: dict[int, PoissonArrivals] = {}
@@ -369,17 +372,27 @@ class Road:
         return a
 
     def _count_collisions(self, groups: dict[tuple[int, int], list[Vehicle]]) -> None:
+        # La simulación no modela lo que pasa después de un choque: se cuenta (una vez por par de
+        # vehículos) y los dos siguen su camino.
         for (lane, direction), lst in groups.items():
             for lead, veh in zip(lst, lst[1:]):
-                if veh.x > lead.rear:
-                    self.collisions += 1
+                if veh.x > lead.rear and lead is not veh:
+                    self._choque(lead, veh)
             if direction != 1:
                 continue
             for veh in lst:  # choque frontal con vehículos contrarios del mismo carril
                 for other in groups.get((lane, -1), ()):
                     o_front = self.front_in_opposite_frame(other)
                     if veh.x > o_front and veh.rear < o_front + other.length:
-                        self.collisions += 1
+                        self._choque(veh, other)
+
+    def _choque(self, a: Vehicle, b: Vehicle) -> None:
+        par = (a.id, b.id) if a.id < b.id else (b.id, a.id)
+        if par not in self._choques:
+            self._choques.add(par)
+            self.collisions += 1
+            a.crashes += 1
+            b.crashes += 1
 
     def _remove_finished(self) -> None:
         if not any(v.x >= self.length for v in self.vehicles):

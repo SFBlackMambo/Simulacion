@@ -82,6 +82,8 @@ class Vehicle:
     fuel: object = None  # FuelParams (None: los de un auto)
     g_now: float = 0.0  # pendiente bajo el vehículo en este paso
     fuel_l: float = 0.0  # combustible gastado, L
+    logit_eta: object = None  # término aleatorio del conductor en la aceptación de hueco (F032)
+    crashes: int = 0  # choques en que estuvo (cada par de vehículos cuenta una vez)
 
     def __post_init__(self) -> None:
         if self.lane < 0:
