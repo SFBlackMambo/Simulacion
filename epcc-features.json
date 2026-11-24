@@ -904,12 +904,13 @@
       "subtasks": [
         {
           "name": "Combustible y CO2 por viaje",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T19:47:23-07:00"
     },
     {
       "id": "F031",

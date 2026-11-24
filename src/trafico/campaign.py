@@ -26,12 +26,13 @@ from . import config as cfgmod
 from .simulation import RunResult, SimConfig, run_simulation
 
 CAMPOS_SONDA = ["indice", "t_entrada", "tiempo_viaje", "tiempo_libre", "retraso", "rebases", "t_lento",
-                "t_espera_entrada"]
+                "t_espera_entrada", "litros", "co2_kg", "t_carril_contrario", "ttc_min_contrario", "conflictos",
+                "frenado_emergencia"]
 CAMPOS_CORRIDA = ["colisiones", "vehiculos_emergencia", "n_fondo", "retraso_fondo", "retraso_fondo_mediana",
                   "rebases_fondo", "alcances_fondo", "veces_rebasado_fondo", "t_lento_fondo",
                   "rebases_sondas", "alcances_sondas", "rebases_en_cadena_fondo", "camiones_fondo",
                   "retraso_camiones", "pct_siguiendo_fondo", "t_contrario_fondo", "conflictos_lider",
-                  "conflictos_contrario", "con_viajes"]
+                  "conflictos_contrario", "l_100km_fondo", "litros_sondas", "con_viajes"]
 
 
 def parse_sweep(texto: str) -> tuple[str, list]:
@@ -97,11 +98,16 @@ def _resumir(res: RunResult, viajes: bool) -> dict:
         "t_contrario_fondo": _media(fondo, "t_carril_contrario"),
         "conflictos_lider": sum(t["conflictos_lider"] for t in res.trips),
         "conflictos_contrario": sum(t["conflictos_contrario"] for t in res.trips),
+        "l_100km_fondo": _media(fondo, "l_100km"),
+        "litros_sondas": _media(sondas, "litros"),
     }
     probes = [{
         "indice": p.index, "t_entrada": round(p.t_entry, 2), "tiempo_viaje": round(p.travel_time, 3),
         "tiempo_libre": round(p.free_time, 3), "retraso": round(p.delay, 3), "rebases": p.overtakes,
         "t_lento": round(p.t_slow, 2), "t_espera_entrada": round(p.t_wait_entry, 2),
+        "litros": round(p.litros, 4), "co2_kg": round(p.co2_kg, 4), "t_carril_contrario": round(p.t_opposite, 2),
+        "ttc_min_contrario": round(p.ttc_opp_min, 3) if np.isfinite(p.ttc_opp_min) else "",
+        "conflictos": p.conflicts, "frenado_emergencia": p.emergency,
     } for p in res.probes]
     return {"corrida": corrida, "sondas": probes, "viajes": res.trips if viajes else []}
 

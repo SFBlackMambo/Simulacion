@@ -279,3 +279,11 @@
 - Columnas (docs/datos.md): t, id, sentido, x, x_propio, carril, v_kmh, a, largo, clase, sonda, estado, id_lider, hueco_m, headway_s, id_seguidor.
 - La sesión anterior se cortó con todo hecho salvo `id_seguidor` (pedido en los criterios); se agregó y se prueba que el seguidor tiene al vehículo como líder.
 - Verificado: 181 tests; huella idéntica. Siguiente: `/epcc-code F030`.
+
+---
+
+## F030 - 2026-11-23
+- `src/trafico/fuel.py`: VSP de Jiménez-Palacios (autos; camiones con masa rotatoria 1.05, rodadura 0.0065, CdA 6 m² y masa por lb/hp con motor de 430 hp) y línea de Willans (P0 + VSP·m/η). Gasolina 32 MJ/L, diésel 35.8 MJ/L; CO2 de la EPA.
+- viajes.csv: `litros`, `l_100km`, `co2_kg`. sondas.csv: `litros`, `co2_kg`, `t_carril_contrario`, `ttc_min_contrario`, `conflictos`, `frenado_emergencia`. corridas.csv: `l_100km_fondo`, `litros_sondas`.
+- Revisión: auto en llano 5.7 / 6.8 / 7.5 L/100 km a 100 / 120 / 130 (±15 % de los típicos 5.8 / 7.0 / 7.6); camión de 29 t a 90 km/h: 31 L/100 km. Supuestos documentados en docs/datos.md (sin verificar en línea).
+- Solo se registra; costo ~6 %. Verificado: 190 tests; huella idéntica.

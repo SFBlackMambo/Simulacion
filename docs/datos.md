@@ -66,13 +66,33 @@ sin la clave de la corrida.
 | `factor_limite` | × | Cuánto se pasa del límite de velocidad (1 = lo respeta; 1.2 = va 20 % arriba) |
 | `potencia_w_kg` | W/kg | Potencia específica en la rueda (autos 22; camiones según su relación peso/potencia) |
 | `lb_hp` | lb/hp | Relación peso/potencia del camión (solo camiones; redondeada al 0.5 W/kg) |
+| `litros` | L | Combustible gastado en el viaje (gasolina los autos, diésel los camiones; ver abajo) |
+| `l_100km` | L/100 km | `litros` por cada 100 km; vacío si no hizo el viaje completo |
+| `co2_kg` | kg | CO2 del escape: 2.348 kg/L de gasolina y 2.689 kg/L de diésel (EPA) |
 
 Notas: el headway y el TTC se miden respecto al vehículo de delante en el carril que se ocupa (mientras rebasa,
 el de delante en el carril contrario). Estas medidas solo se registran: no cambian la simulación.
 
 `corridas.csv` resume además, para el tráfico de fondo con viaje completo: `pct_siguiendo_fondo` (media de
 `pct_tiempo_siguiendo`), `t_contrario_fondo` (s), y para todos los vehículos `conflictos_lider` y
-`conflictos_contrario` (totales de la corrida).
+`conflictos_contrario` (totales de la corrida), `l_100km_fondo` (media del fondo) y `litros_sondas` (media
+por sonda). `sondas.csv` trae por sonda `litros`, `co2_kg`, `t_carril_contrario`, `ttc_min_contrario`,
+`conflictos` (con el de delante y frente a frente) y `frenado_emergencia`.
+
+### Combustible (`src/trafico/fuel.py`)
+
+En cada paso se calcula la potencia específica en la rueda (VSP de Jiménez-Palacios 1999, kW/t):
+`VSP = v·(1.1·a + 9.81·i + 0.132) + 0.000302·v³`, con la aceleración aplicada `a` y la pendiente `i`. Los
+camiones usan masa rotatoria 1.05, rodadura 0.0065 y aire con CdA = 6 m²; su masa sale de la relación
+peso/potencia con un motor de 430 hp (vehículo de proyecto de la SCT). El consumo sigue la línea de Willans
+(como los modelos de potencia de Akçelik y VT-CPFM): `potencia de combustible = P0 + max(VSP, 0)·m/η`, con
+autos P0 = 8 kW y η = 0.36 (gasolina, 32 MJ/L) y camiones P0 = 20 kW y η = 0.40 (diésel, 35.8 MJ/L).
+Frenando o en bajada gasta solo P0.
+
+Revisión: un auto en llano a velocidad constante gasta 5.7, 6.8 y 7.5 L/100 km a 100, 120 y 130 km/h
+(+33 % de 100 a 130) y un camión de 29 t a 90 km/h, 31 L/100 km. Son supuestos razonables (consumos típicos
+publicados), no una calibración contra un vehículo en particular; los coeficientes se pueden cambiar en
+`fuel.py`.
 
 ## Trayectorias (`--trayectorias S`, opcional)
 

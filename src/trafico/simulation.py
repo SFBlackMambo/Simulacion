@@ -7,6 +7,7 @@ import numpy as np
 from .arrivals import PoissonArrivals
 from .drivers import DriverModel
 from .fleet import CAMION, TruckParams
+from .fuel import AUTO_FUEL
 from .idm import IDMParams
 from .overtaking import OvertakeParams
 from .recorder import Recorder, viaje
@@ -70,6 +71,13 @@ class ProbeResult:
     overtakes: int
     t_slow: float
     t_wait_entry: float
+    # medidas que solo se registran (F030-F031)
+    litros: float = 0.0
+    co2_kg: float = 0.0
+    t_opposite: float = 0.0
+    ttc_opp_min: float = float("inf")
+    conflicts: int = 0  # episodios con TTC < 1.5 s (con el de delante y frente a frente)
+    emergency: int = 0  # 1 si frenó de emergencia
 
     @property
     def delay(self) -> float:
@@ -232,6 +240,12 @@ def run_simulation(
             overtakes=p.overtakes,
             t_slow=p.t_slow,
             t_wait_entry=p.t_wait_entry,
+            litros=p.fuel_l,
+            co2_kg=p.fuel_l * (p.fuel or AUTO_FUEL).co2_kg_l,
+            t_opposite=p.t_opposite,
+            ttc_opp_min=p.ttc_opp_min,
+            conflicts=p.conflicts_leader + p.conflicts_opp,
+            emergency=int(p.emergency_steps > 0),
         )
         for i, p in enumerate(probes)
     ]

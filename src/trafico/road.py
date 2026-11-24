@@ -10,6 +10,7 @@ from operator import attrgetter
 from .arrivals import PoissonArrivals
 from . import overtaking
 from .fleet import AUTO, CAMION, LARGO_AUTO, TruckParams
+from .fuel import AUTO_FUEL, litros_por_s, truck_fuel
 from .geometry import curve_accel
 from .slopes import AUTO_GRADES, accel_limit
 from .idm import IDMParams, advance, hdm_acceleration, idm_acceleration
@@ -81,6 +82,7 @@ class Road:
             kw.setdefault("length", t.length)
             kw["idm"] = t.idm
             kw["grades"] = t.response(self._truck_rng)
+            kw["fuel"] = _fuel_camion(kw["grades"].power_w_kg)
         veh = Vehicle(self._next_id, v0, direction=direction, probe=probe, kind=kind, **kw)
         self._next_id += 1
         if self.drivers is not None and not probe:  # las sondas son conductores normales
@@ -255,7 +257,7 @@ class Road:
                     k = int(veh.x / geo.grid)
                     k = 0 if k < 0 else (len(tabla) - 1 if k >= len(tabla) else k)
                     if pend_dir is not None:
-                        g = pend_dir[k]
+                        g = veh.g_now = pend_dir[k]
                         mult = veh.mult
                         if mult is None:
                             mult = veh.mult = geo.mult_list(direction, veh.grades)
@@ -335,6 +337,7 @@ class Road:
             if self.b_physical and a < -self.b_physical:
                 a = -self.b_physical  # un vehículo real no frena más que esto
             advance(veh, a, dt)
+            veh.fuel_l += litros_por_s(veh.fuel or AUTO_FUEL, veh.v, a, veh.g_now) * dt  # solo se registra
             if veh.lc < 1.0:
                 veh.lc = min(1.0, veh.lc + dt / t_lc) if t_lc > 0 else 1.0
             if veh.v < veh.v_des - 1.0:
@@ -408,6 +411,17 @@ class Road:
         """Corre `seconds` segundos simulados."""
         for _ in range(math.ceil(seconds / self.dt - 1e-9)):
             self.step()
+
+
+_FUEL_CAMION: dict = {}
+
+
+def _fuel_camion(w_kg: float):
+    """Consumo de un camión según su potencia en la rueda (caché: hay pocas distintas)."""
+    f = _FUEL_CAMION.get(w_kg)
+    if f is None:
+        f = _FUEL_CAMION[w_kg] = truck_fuel(1644.0 * 0.87 / w_kg)
+    return f
 
 
 TTC_CONFLICTO = 1.5  # s, umbral de conflicto (SSAM, Gettman y Head 2003)

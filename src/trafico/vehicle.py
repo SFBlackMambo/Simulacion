@@ -79,6 +79,9 @@ class Vehicle:
     m_ttco: float = float("inf")
     ttcl_prev: float = float("inf")
     ttco_prev: float = float("inf")
+    fuel: object = None  # FuelParams (None: los de un auto)
+    g_now: float = 0.0  # pendiente bajo el vehículo en este paso
+    fuel_l: float = 0.0  # combustible gastado, L
 
     def __post_init__(self) -> None:
         if self.lane < 0:
