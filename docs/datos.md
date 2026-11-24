@@ -214,3 +214,8 @@ Cada tramo `inicio:fin:sentido` (m, en coordenadas de la carretera) le da un seg
 Estrés (12 km con cuatro tramos de 1.5 km, realista con 20 % camiones, 4 semillas): 0 choques de 300 a
 900 veh/h, en recta y en montaña. A 900 veh/h en montaña el carril extra se satura: muchos llegan al final sin
 haber rebasado.
+
+En el menú: "¿Con carriles de rebase?" pide cada cuántos km y el largo, y arma tramos que alternan el sentido
+(`config.patron_2mas1`). En la animación, la vía tiene tres franjas: arriba el carril contrario, en medio el
+carril extra y abajo el propio. Dentro de un tramo, la doble raya amarilla separa los sentidos y una
+discontinua separa los dos carriles del mismo sentido.

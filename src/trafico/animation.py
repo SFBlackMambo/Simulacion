@@ -195,9 +195,13 @@ class Animacion:
         if geo is not None:
             for a, b in geo.curve_spans():
                 pg.draw.rect(scr, CURVA, (x0 + a / L * ancho, y0, max(1, (b - a) / L * ancho), alto))
+        for d, tramos in road.passing.items():  # carriles de rebase en el mapa
+            for a_, b_ in tramos:
+                ra, rb = (a_, b_) if d == 1 else (L - b_, L - a_)
+                pg.draw.rect(scr, LINEA, (x0 + ra / L * ancho, y0 + alto * 0.45, max(1, (rb - ra) / L * ancho), 2))
         for v in road.vehicles:
             px = x0 + road.position(v) / L * ancho
-            py = y0 + (alto * 0.3 if v.lane == 1 else alto * 0.7)
+            py = y0 + (alto * 0.3 if v.lane == 1 else alto * 0.5 if v.lane >= 2 else alto * 0.7)
             pg.draw.circle(scr, color_de(v), (px, py), 4 if v.probe else 2)
         a = max(0.0, self.centro - self.ventana / 2)
         b = min(L, self.centro + self.ventana / 2)
@@ -211,8 +215,9 @@ class Animacion:
         if geo is not None and geo.grades:
             self._perfil(geo, x0, y0 + alto + 58, ancho, 36, a, b)
             top = 330
-        alto_via = 120 if h >= 800 else 96
-        carril = alto_via / 2
+        tres = road.has_passing  # con carriles de rebase: tres franjas (contrario, extra, propio)
+        alto_via = (120 if h >= 800 else 96) * (1.5 if tres else 1.0)
+        carril = alto_via / (3 if tres else 2)
         izq = self.centro - self.ventana / 2
         esc = (w - 80) / self.ventana  # px por metro
 
@@ -237,15 +242,34 @@ class Animacion:
                 if izq <= a_ < izq + self.ventana:
                     self._senal(X(a_) + 16, top - 16, lim)
         # línea central: discontinua, o continua donde no se puede rebasar
-        ymid = top + carril
         paso = 12.0 if self.ventana < 3000 else 60.0
         s = math.floor(izq / paso) * paso
+
+        def doble(y):
+            pg.draw.line(scr, AMARILLO, (X(s), y - 3), (X(s + paso), y - 3), 2)
+            pg.draw.line(scr, AMARILLO, (X(s), y + 3), (X(s + paso), y + 3), 2)
+
+        def discontinua(y):
+            if int(round(s / paso)) % 2 == 0:
+                pg.draw.line(scr, LINEA, (X(s), y), (X(s + paso * 0.6), y), 2)
+
         while s < izq + self.ventana:
-            if geo is not None and geo.marked_no_pass(s):
-                pg.draw.line(scr, AMARILLO, (X(s), ymid - 3), (X(s + paso), ymid - 3), 2)
-                pg.draw.line(scr, AMARILLO, (X(s), ymid + 3), (X(s + paso), ymid + 3), 2)
-            elif int(round(s / paso)) % 2 == 0:
-                pg.draw.line(scr, LINEA, (X(s), ymid), (X(s + paso * 0.6), ymid), 2)
+            zona = 0
+            if tres:
+                zona = 1 if road.passing_end(1, s) is not None else (-1 if road.passing_end(-1, L - s) is not None
+                                                                      else 0)
+            if zona == 1:  # carril extra del sentido →: doble raya arriba, discontinua entre los dos →
+                doble(top + carril)
+                discontinua(top + 2 * carril)
+            elif zona == -1:
+                discontinua(top + carril)
+                doble(top + 2 * carril)
+            else:
+                ymid = top + (1.5 * carril if tres else carril)
+                if geo is not None and geo.marked_no_pass(s):
+                    doble(ymid)
+                else:
+                    discontinua(ymid)
             s += paso
         pg.draw.line(scr, BORDE, (40, top), (w - 40, top), 2)
         pg.draw.line(scr, BORDE, (40, top + alto_via), (w - 40, top + alto_via), 2)
@@ -266,7 +290,10 @@ class Animacion:
             largo = max(xb - xa, largo_min * (2.4 if es_camion else 1.0))
             if v.direction == -1:
                 xa = xb - largo  # el frente queda a la izquierda
-            yc = lambda ln: top + (carril * 0.5 if ln == 1 else carril * 1.5)  # noqa: E731
+            if tres:
+                yc = lambda ln: top + (carril * 0.5 if ln == 1 else carril * 1.5 if ln >= 2 else carril * 2.5)  # noqa: E731
+            else:
+                yc = lambda ln: top + (carril * 0.5 if ln == 1 else carril * 1.5)  # noqa: E731
             yv = yc(v.lane) if v.lc >= 1.0 else yc(v.lane_prev) + (yc(v.lane) - yc(v.lane_prev)) * v.lc
             y = yv - alto_coche / 2
             rect = pg.Rect(xa, y, largo, alto_coche)
@@ -395,6 +422,8 @@ class Animacion:
             partes.append("se asoma para ver")
         elif o is not None and o.blocked_view:
             partes.append("vista tapada")
+        if c.passing_lanes:
+            partes.append(f"{len(c.passing_lanes)} tramos con carril de rebase (2+1)")
         if o is not None and o.gap_logit:
             partes.append("acepta huecos al azar (logit)" + (" con piso" if o.gap_floor else ""))
         if d.share_cautious or d.share_aggressive:

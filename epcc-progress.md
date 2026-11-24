@@ -322,3 +322,11 @@
 - Hallazgos al validar: (1) si el de delante también se pasaba al carril extra, el auto nunca lo "rebasaba" y abortaba al final → ahora cuenta como rebasado; (2) el obstáculo del fin frenaba desde 500 m → solo en la zona de incorporación; (3) regresar sin rebasar porque el objetivo se fue al carril extra no es aborto.
 - Estrés (12 km, 4 tramos de 1.5 km, realista con 20 % camiones, 300/600/900 veh/h, recta y montaña, 4 semillas): 0 choques; rebases 0.57-0.82 por vehículo (sin tramos: 0.17-0.27).
 - `t_carril_contrario` ya no cuenta el carril extra. Verificado: 214 tests; huella idéntica (CPython y PyPy).
+
+---
+
+## F035 - 2026-11-23
+- Animación: con carriles de rebase la vía tiene tres franjas (contrario, extra, propio), doble raya amarilla del lado del sentido de un solo carril, discontinua entre los dos carriles del mismo sentido; tramos marcados en el mapa; "N tramos con carril de rebase" en la lista del modelo. Capturas revisadas (fuera de tramo y con un vehículo del sentido ← rebasando por el carril extra).
+- Menú: pregunta por tramos 2+1 (cada cuántos km y largo); `config.patron_2mas1` los genera alternando el sentido.
+- Incorporación al final y estrés: ver F034 (0 choques; test_passing_lane incluye estrés realista en montaña con 20 % camiones a 600 veh/h).
+- Verificado: 215 tests.

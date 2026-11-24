@@ -74,7 +74,19 @@ class Menu:
         args += ["--longitud", _fmt(km * 1000)]
         args += self.trazado()
         args += self.relieve_y_modelo()
+        args += self.carriles_rebase(km * 1000)
         return args
+
+    def carriles_rebase(self, longitud: float) -> list[str]:
+        """Tramos 2+1: un carril de rebase cada tantos km, alternando el sentido."""
+        if not self.si_no("¿Con carriles de rebase (tramos 2+1, alternando el sentido)?", False):
+            return []
+        cada = self.preguntar("Un tramo cada cuántos km", 5, float) * 1000
+        largo = self.preguntar("Largo de cada tramo (km)", 1.5, float) * 1000
+        from .config import patron_2mas1
+
+        texto = patron_2mas1(longitud, cada, largo)
+        return ["--param", f"carriles_rebase={texto}"] if texto else []
 
     def relieve_y_modelo(self) -> list[str]:
         """Relieve, camiones y comportamiento realista (fase 3)."""

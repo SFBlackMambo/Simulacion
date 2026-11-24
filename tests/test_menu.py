@@ -11,14 +11,14 @@ def _menu(respuestas, ejecutar=False):
 
 def test_corrida_con_valores_por_defecto():
     # 1 corrida; modo 1 (flujo); Enter en todo; no hacer otra cosa
-    m, out = _menu(["1", "1", "", "", "", "", "", "", "", "", "", "results/x", "n"])
+    m, out = _menu(["1", "1", "", "", "", "", "", "", "", "", "", "", "results/x", "n"])
     assert m.ultimo[:3] == ["corrida", "--modo", "flujo"]
     assert "--flujo" in m.ultimo and "--vel-sonda" in m.ultimo
     assert "trafico corrida" in out
 
 
 def test_animacion_carretera_llena():
-    m, _ = _menu(["2", "2", "50", "10", "1", "1", "n", "", "130", "3", "7", "n", "n"])
+    m, _ = _menu(["2", "2", "50", "10", "1", "1", "n", "", "n", "130", "3", "7", "n", "n"])
     assert m.ultimo[0] == "animar"
     i = m.ultimo.index("--vehiculos")
     assert m.ultimo[i + 1] == "50"
@@ -29,7 +29,7 @@ def test_animacion_carretera_llena():
 def test_campana_con_dos_barridos_y_valor_invalido():
     m, out = _menu([
         "3", "1", "abc", "200", "20", "1",  # tráfico (con un valor inválido que se repite), recta
-        "1", "n", "",  # plano, sin realista, sin camiones
+        "1", "n", "", "n",  # plano, sin realista, sin camiones, sin 2+1
         "4", "100,300",  # barrer flujo
         "5", "5000, 10000",  # barrer longitud
         "0", "120 130", "4", "3", "2", "results/c", "n", "n",
@@ -42,7 +42,7 @@ def test_campana_con_dos_barridos_y_valor_invalido():
 
 
 def test_menu_ejecuta_la_corrida(tmp_path):
-    m, out = _menu(["1", "1", "150", "3", "1", "1", "n", "", "130", "1", "2", str(tmp_path / "r"), "n"],
+    m, out = _menu(["1", "1", "150", "3", "1", "1", "n", "", "n", "130", "1", "2", str(tmp_path / "r"), "n"],
                    ejecutar=True)
     assert (tmp_path / "r" / "viajes.csv").exists()
     assert (tmp_path / "r" / "resumen.json").exists()
@@ -54,19 +54,25 @@ def test_salir():
 
 
 def test_corrida_con_muchas_curvas_y_trazado_fijo():
-    m, _ = _menu(["1", "1", "200", "10", "3", "5", "1", "n", "", "130", "2", "1", "results/x", "n"])
+    m, _ = _menu(["1", "1", "200", "10", "3", "5", "1", "n", "", "n", "130", "2", "1", "results/x", "n"])
     assert m.ultimo[m.ultimo.index("--trazado") + 1] == "muchas"
     assert m.ultimo[m.ultimo.index("--semilla-trazado") + 1] == "5"
 
 
 def test_campana_barre_trazado():
-    m, _ = _menu(["3", "1", "200", "20", "1", "1", "n", "", "1", "recta,muchas", "0", "120 130", "4", "2", "1",
+    m, _ = _menu(["3", "1", "200", "20", "1", "1", "n", "", "n", "1", "recta,muchas", "0", "120 130", "4", "2", "1",
                   "results/c", "n", "n"])
     assert "trazado=recta,muchas" in m.ultimo
 
 
 def test_animacion_realista_montanosa():
-    m, _ = _menu(["2", "2", "60", "20", "2", "0", "3", "s", "15", "130", "3", "1", "s", "n"])
+    m, _ = _menu(["2", "2", "60", "20", "2", "0", "3", "s", "15", "n", "130", "3", "1", "s", "n"])
     assert "--realista" in m.ultimo and "--pantalla-completa" in m.ultimo
     assert m.ultimo[m.ultimo.index("--relieve") + 1] == "montanoso"
     assert m.ultimo[m.ultimo.index("--camiones") + 1] == "0.15"
+
+
+def test_corrida_con_carriles_de_rebase():
+    m, _ = _menu(["1", "1", "200", "20", "1", "1", "n", "", "s", "5", "1.5", "130", "2", "1", "results/x", "n"])
+    i = m.ultimo.index("--param")
+    assert m.ultimo[i + 1] == "carriles_rebase=2500:4000:1;7500:9000:-1;12500:14000:1;17500:19000:-1"

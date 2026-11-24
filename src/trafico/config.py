@@ -184,3 +184,15 @@ def realista(cfg: SimConfig) -> SimConfig:
             continue
         cfg = set_param(cfg, k, v)
     return cfg
+
+
+def patron_2mas1(longitud: float, cada: float, largo: float) -> str:
+    """Tramos con carril de rebase cada `cada` m, de `largo` m, alternando el sentido (texto para
+    `carriles_rebase`). El primero empieza a media distancia de `cada`; deja 500 m libres en cada punta."""
+    tramos, x, d = [], cada / 2.0, 1
+    while x + largo <= longitud - 500.0:
+        if x >= 500.0:
+            tramos.append(f"{x:g}:{x + largo:g}:{d}")
+            d = -d
+        x += cada
+    return ";".join(tramos)
