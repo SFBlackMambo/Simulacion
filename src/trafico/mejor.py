@@ -163,12 +163,21 @@ def _equilibrio(filas: list[dict], combo_vals: dict, ref: float) -> None:
         horas = f["ganancia_vs_ref"] / 3600.0
         extra_sin = (f["medio_combustible"] + f["medio_co2"]) - (base["medio_combustible"] + base["medio_co2"])
         extra = extra_sin + f["medio_accidentes"] - base["medio_accidentes"]
-        ok = f["v_sonda"] != ref and horas > 0
+        # (a una velocidad menor que `ref` las dos cosas son negativas: el valor es a partir del cual conviene
+        # `ref` en lugar de esa velocidad)
+        ok = f["v_sonda"] != ref and abs(horas) > 1e-9
         f["vtt_equilibrio"] = extra / horas if ok else float("nan")
         f["vtt_equilibrio_sin_accidentes"] = extra_sin / horas if ok else float("nan")
 
 
 # --- gráficas -------------------------------------------------------------------------------------------
+def _num_o_texto(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return v
+
+
 def _nombre_combo(camp: Campaign, vals: dict) -> str:
     return ", ".join(valor_legible(p, vals[p]) for p in camp.params) or "Campaña"
 
@@ -203,15 +212,31 @@ def graficar(folder, precios: dict[str, Precios] | None = None, salida=None) -> 
     write_csv(rutas[0], list(filas[0]), _redondear(filas))
     write_csv(rutas[1], list(mejores[0]), _redondear(mejores))
     grupos = _por_combo(filas, camp)
-    if len(grupos) > len(SERIES8):
-        grupos = dict(list(grupos.items())[:len(SERIES8)])  # el resto queda en las tablas
     nombres = {k: _nombre_combo(camp, fs[0]) for k, fs in grupos.items()}
     ref = filas[0]["v_referencia"]
+    # Gráficas pequeñas en vez de muchas líneas: con dos o más parámetros barridos, una gráfica por cada valor
+    # de los demás y una línea por valor del primero (así cada gráfica tiene pocas series y leyenda legible).
+    if len(camp.params) > 1:
+        paneles = defaultdict(dict)
+        for k, fs in grupos.items():
+            paneles[k[1:]][k] = fs
+        nombre_panel = {pk: ", ".join(valor_legible(p, _num_o_texto(v)) for p, v in zip(camp.params[1:], pk))
+                        for pk in paneles}
+        nombres = {k: valor_legible(camp.params[0], _num_o_texto(k[0])) for k in grupos}
+    else:
+        paneles = {(): grupos}
+        nombre_panel = {(): ""}
 
     def lineas(campo, titulo, yl, archivo, cero=False):
+        for pk, gs in paneles.items():
+            sufijo = "".join(f"__{p}={_formato(_num_o_texto(v))}" for p, v in zip(camp.params[1:], pk))
+            t = titulo + (f"\n{nombre_panel[pk]}" if nombre_panel[pk] else "")
+            _lineas_panel(gs, campo, t, yl, out / archivo.replace(".png", f"{sufijo}.png"), cero)
+
+    def _lineas_panel(gs, campo, titulo, yl, p, cero):
         fig, ax = _ax(titulo, "Velocidad deseada de la sonda (km/h)", yl)
         finales = []
-        for i, (k, fs) in enumerate(grupos.items()):
+        for i, (k, fs) in enumerate(list(gs.items())[:len(SERIES8)]):
             fs = sorted((f for f in fs if f[campo] == f[campo]), key=lambda f: f["v_sonda"])
             if not fs:
                 continue
@@ -222,7 +247,6 @@ def graficar(folder, precios: dict[str, Precios] | None = None, salida=None) -> 
         if cero:
             ax.axhline(0, color=GRID, linewidth=1)
         _etiquetar_fin(ax, finales)
-        p = out / archivo
         _guardar_arriba(fig, ax, p)
         rutas.append(p)
 
@@ -232,11 +256,11 @@ def graficar(folder, precios: dict[str, Precios] | None = None, salida=None) -> 
     lineas("ganancia_paso", "Lo que gana cada paso de +10 km/h", "Tiempo ganado contra la velocidad anterior (s)",
            "mejor_ganancia_paso.png", cero=True)
     lineas("l_100km", "Combustible de la sonda", "L/100 km", "mejor_combustible.png")
-    lineas("riesgo_kloeden", "Riesgo individual (Kloeden): según cuánto se aleja del tráfico",
+    lineas("riesgo_kloeden", "Riesgo individual (Kloeden)",
            "Riesgo relativo de accidente", "mejor_riesgo_kloeden.png")
-    lineas("vtt_equilibrio", f"¿Cuánto tendría que valer una hora para que convenga ir más rápido que {ref:g}?",
-           "MXN por vehículo y hora (combustible, CO2 y accidentes)", "mejor_valor_equilibrio.png")
-    lineas("vtt_equilibrio_sin_accidentes", f"Lo mismo sin contar accidentes (solo combustible y CO2)",
+    lineas("vtt_equilibrio", f"Valor de la hora desde el que conviene ir más rápido que {ref:g}",
+           "MXN por vehículo y hora", "mejor_valor_equilibrio.png")
+    lineas("vtt_equilibrio_sin_accidentes", "Lo mismo, contando solo combustible y CO2",
            "MXN por vehículo y hora", "mejor_valor_equilibrio_sin_accidentes.png")
     for esc in precios:
         riesgo = "riesgo individual de Kloeden" if precios[esc].riesgo == "kloeden" else "riesgo con el modelo potencia"

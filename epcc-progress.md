@@ -346,3 +346,12 @@
 - Con sondas a 150 km/h aparecieron choques en el realista, incluso con el criterio fijo. Causa: al planear el rebase, el pelotón a rebasar se armaba con huecos de 44.5 m, pero con `return_closing` el regreso exige además la distancia para frenar desde la velocidad del rebase (a 150 contra 83 km/h, +57 m). La sonda no podía volver, seguía de largo por el carril contrario rebasando a un pelotón que nunca evaluó y terminaba en frenado de emergencia (en un caso, la alcanzaron por detrás al volver casi detenida).
 - Corrección (`overtaking._frenar_al_volver`, solo con `return_closing`): el plan usa el mismo hueco que el regreso. Realista recta 200 veh/h, 8 semillas, sonda a 150: choques 1 → 0; sustos por corrida 2.9 → 1.5 (criterio fijo) y 12.2 → 9.8 (logit). El modelo simple no cambia; la huella tampoco (sus corridas cortas no caen en el caso).
 - Se vuelven a correr las cinco campañas realistas de la fase 4.
+
+---
+
+## F037 - 2026-11-23
+- `scripts/campanas_fase4.sh`: las campañas de las fases 1 a 3 otra vez (f4_flujo, f4_curvas, f4_distancia, f4_camiones_relieve, f4_realista, f4_cadena) más f4_rebase (logit × asomarse) y f4_2mas1 (2+1 cada 5 km × flujo), con sondas de 90 a 150, 8 semillas, 20 sondas, viajes guardados y `--rapido`. 3,248 corridas, ~30 min con 15 núcleos (las realistas otra vez tras la corrección del rebase, ~25 min).
+- Choques: 0 en el modelo simple; en el realista 3 en ~15 M veh-km, todos con el logit sin piso (vehículos que aceptan un hueco justo, frenan de emergencia y los alcanzan al volver); 0 con el criterio fijo. Sustos: 0-0.03 por corrida (simple), 2-11 (realista, casi todos de quien viene en su carril frente a un rebase justo).
+- `scripts/resumen_fase4.py --docs docs`: tablas Markdown y CSV por campaña en docs/ (f4_*_resumen.csv, f4_*_mejor_*.csv) y gráficas elegidas.
+- `graficar --mejor`: gráficas pequeñas (una por valor del segundo parámetro) cuando hay varios barridos; valor del tiempo de equilibrio (con y sin accidentes, también para 90 contra 100).
+- Hallazgo principal: con los precios supuestos la mejor velocidad es 90 km/h casi siempre; solo en montaña con camiones sube a 110 (empate de 90 a 120). Ir a 130 en vez de 100 conviene solo si la hora vale más de ~300-460 MXN (200-270 sin contar accidentes).

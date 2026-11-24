@@ -83,3 +83,20 @@ def test_campana_vieja_sin_litros_da_error_claro(campana, tmp_path):
     with pytest.raises(ValueError, match="correrla de nuevo"):
         tablas(vieja)
 
+
+
+def test_valor_de_equilibrio_coincide_con_el_costo(campana):
+    filas, _ = tablas(campana)
+    for f in filas:
+        if f["v_sonda"] == 100.0:
+            assert math.isnan(f["vtt_equilibrio"])
+            continue
+        vtt = f["vtt_equilibrio"]
+        base = next(b for b in filas if b["v_sonda"] == 100.0 and b["flow_per_hour"] == f["flow_per_hour"])
+        # con ese valor del tiempo, las dos velocidades cuestan lo mismo
+        p = escenarios_precios(["medio"], [f"valor_tiempo_h={vtt}"])
+        g, _ = tablas(campana, p)
+        a = next(x for x in g if x["v_sonda"] == f["v_sonda"] and x["flow_per_hour"] == f["flow_per_hour"])
+        b = next(x for x in g if x["v_sonda"] == 100.0 and x["flow_per_hour"] == f["flow_per_hour"])
+        assert a["costo_medio"] == pytest.approx(b["costo_medio"], rel=1e-6)
+        assert base["v_sonda"] == 100.0

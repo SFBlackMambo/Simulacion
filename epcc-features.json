@@ -1097,12 +1097,13 @@
       "subtasks": [
         {
           "name": "Volver a correr las campañas",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T22:17:26-07:00"
     },
     {
       "id": "F038",
