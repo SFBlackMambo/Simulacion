@@ -877,12 +877,13 @@
       "subtasks": [
         {
           "name": "Trayectorias opcionales",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 2
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T18:31:22-07:00"
     },
     {
       "id": "F030",

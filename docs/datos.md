@@ -73,3 +73,26 @@ el de delante en el carril contrario). Estas medidas solo se registran: no cambi
 `corridas.csv` resume además, para el tráfico de fondo con viaje completo: `pct_siguiendo_fondo` (media de
 `pct_tiempo_siguiendo`), `t_contrario_fondo` (s), y para todos los vehículos `conflictos_lider` y
 `conflictos_contrario` (totales de la corrida).
+
+## Trayectorias (`--trayectorias S`, opcional)
+
+Una fila por vehículo cada `S` segundos, al estilo NGSIM. En la corrida única es `trayectorias.csv`. En una
+campaña es `trayectorias/combo<k>_v<v_sonda>_s<semilla>.csv`, un archivo por corrida. Con `--solo-sondas`
+solo se guardan las sondas. Son archivos grandes: una corrida de 20 km a 200 veh/h con `S = 1` tiene ~1 millón
+de filas (~60 MB).
+
+| Columna | Unidad | Significado |
+|---|---|---|
+| `t` | s | Instante |
+| `id`, `sentido`, `clase`, `sonda` | — | Como en `viajes.csv` (`id` coincide) |
+| `x` | m | Posición del frente en el sistema de la carretera |
+| `x_propio` | m | Posición del frente medida desde la entrada de su sentido (0 a `longitud`) |
+| `carril` | — | 0 = carril del sentido +1, 1 = carril del sentido -1 (si no coincide con su sentido, va rebasando) |
+| `v_kmh` | km/h | Velocidad |
+| `a` | m/s² | Aceleración aplicada en el último paso |
+| `largo` | m | Longitud del vehículo |
+| `estado` | — | `SIGUIENDO`, `REBASANDO` o `REGRESANDO` |
+| `id_lider` | — | Vehículo de delante en su carril y sentido (vacío si no hay) |
+| `hueco_m` | m | Distancia libre hasta el de delante (parachoques a parachoques) |
+| `headway_s` | s | Headway frente a frente con el de delante |
+| `id_seguidor` | — | Vehículo de detrás en su carril y sentido (vacío si no hay) |

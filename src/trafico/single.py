@@ -20,12 +20,22 @@ def run_single(
     out: str | Path,
     snapshot_interval: float = 5.0,
     graficas: bool = True,
+    trayectorias: float = 0.0,
+    solo_sondas: bool = False,
 ) -> dict:
-    """Corre una simulación, guarda CSV, `config.json`, `resumen.json` y gráficas en `out`."""
+    """Corre una simulación, guarda CSV, `config.json`, `resumen.json` y gráficas en `out`.
+
+    Con `trayectorias > 0` guarda también `trayectorias.csv`, cada `trayectorias` s.
+    """
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
-    rec = Recorder(snapshot_interval=snapshot_interval)
-    res = run_simulation(cfg, probe_v0_kmh, seed, recorder=rec)
+    rec = Recorder(snapshot_interval=snapshot_interval,
+                   trajectories=out / "trayectorias.csv" if trayectorias > 0 else None,
+                   traj_interval=trayectorias or 1.0, traj_only_probes=solo_sondas)
+    try:
+        res = run_simulation(cfg, probe_v0_kmh, seed, recorder=rec)
+    finally:
+        rec.close()
     write_csv(out / "viajes.csv", CAMPOS_VIAJE, res.trips)
     rec.save(out)
     cfgmod.save(cfg, out / "config.json", velocidad_sonda=probe_v0_kmh, semilla=seed,

@@ -271,3 +271,11 @@
 - Columnas nuevas en viajes.csv (ver docs/datos.md): v_media_kmh, t_headway_2_5 (seguidor HCM 7.ª ed.), t_headway_3 (PTSF HCM 2010), pct_tiempo_siguiendo, t_carril_contrario, ttc_min_lider, ttc_min_contrario, conflictos_lider/contrario (episodios con TTC < 1.5 s, SSAM), factor_limite, potencia_w_kg y lb_hp. corridas.csv suma pct_siguiendo_fondo, t_contrario_fondo y los conflictos.
 - Solo se registran (función road._medir); la huella no cambia. Costo: ~5 % (realista de 20 km en montaña: 10.9 → 11.4 s).
 - Verificado: 179 tests.
+
+---
+
+## F029 - 2026-11-23
+- Trayectorias tipo NGSIM, apagadas por defecto: `--trayectorias S` en `corrida` (trayectorias.csv) y en `campana` (trayectorias/combo<k>_v<v>_s<semilla>.csv, un archivo por corrida); `--solo-sondas` guarda solo las sondas. Se escriben al vuelo (no llenan la memoria).
+- Columnas (docs/datos.md): t, id, sentido, x, x_propio, carril, v_kmh, a, largo, clase, sonda, estado, id_lider, hueco_m, headway_s, id_seguidor.
+- La sesión anterior se cortó con todo hecho salvo `id_seguidor` (pedido en los criterios); se agregó y se prueba que el seguidor tiene al vehículo como líder.
+- Verificado: 181 tests; huella idéntica. Siguiente: `/epcc-code F030`.

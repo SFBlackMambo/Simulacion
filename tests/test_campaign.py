@@ -106,3 +106,11 @@ def test_cli_sin_viajes(tmp_path):
     main(["campana", "--longitud", "2000", "--calentamiento", "50", "--sondas", "1", "--velocidades", "130",
           "--semillas", "1", "--sin-viajes", "--salida", str(tmp_path)])
     assert not (tmp_path / "viajes.csv").exists()
+
+
+def test_campana_con_trayectorias_solo_sondas(tmp_path):
+    run_campaign(BASE, [], [130], [1], tmp_path, trayectorias=2.0, solo_sondas=True, verbose=False)
+    archivo = tmp_path / "trayectorias" / "combo0_v130_s1.csv"
+    with open(archivo) as f:
+        filas = list(csv.DictReader(f))
+    assert filas and all(r["sonda"] == "1" for r in filas)

@@ -26,6 +26,8 @@ CAMPOS_VIAJE = [
     "factor_limite", "potencia_w_kg", "lb_hp",
 ]
 CAMPOS_EVENTO = ["t", "tipo", "id", "sentido", "x", "n", "en_cadena"]
+CAMPOS_TRAYECTORIA = ["t", "id", "sentido", "x", "x_propio", "carril", "v_kmh", "a", "largo", "clase", "sonda",
+                      "estado", "id_lider", "hueco_m", "headway_s", "id_seguidor"]
 CAMPOS_FOTO = ["t", "id", "sentido", "x", "v_kmh", "v0_kmh", "carril", "sonda", "estado", "v_permitida_kmh", "clase"]
 
 
@@ -80,12 +82,24 @@ class Recorder:
     Con `snapshot_interval=None` no toma fotos (solo eventos).
     """
 
-    def __init__(self, snapshot_interval: float | None = 5.0, events: bool = True) -> None:
+    def __init__(self, snapshot_interval: float | None = 5.0, events: bool = True,
+                 trajectories: str | Path | None = None, traj_interval: float = 1.0,
+                 traj_only_probes: bool = False) -> None:
         self.snapshot_interval = snapshot_interval
         self.keep_events = events
         self.events: list[dict] = []
         self.snapshots: list[tuple] = []
         self._next_snapshot = 0.0
+        # Trayectorias (tipo NGSIM): se escriben al vuelo para no llenar la memoria
+        self.traj_interval = traj_interval
+        self.traj_only_probes = traj_only_probes
+        self._traj_file = None
+        self._next_traj = 0.0
+        if trajectories is not None:
+            Path(trajectories).parent.mkdir(parents=True, exist_ok=True)
+            self._traj_file = open(trajectories, "w", newline="")
+            self._traj = csv.writer(self._traj_file)
+            self._traj.writerow(CAMPOS_TRAYECTORIA)
 
     def event(self, road, kind: str, veh: Vehicle, n: int = 0, cadena: bool = False) -> None:
         if self.keep_events:
@@ -95,6 +109,9 @@ class Recorder:
             })
 
     def on_step(self, road) -> None:
+        if self._traj_file is not None and road.t + 1e-9 >= self._next_traj:
+            self._write_trajectories(road)
+            self._next_traj += self.traj_interval
         if self.snapshot_interval is None or road.t + 1e-9 < self._next_snapshot:
             return
         t = round(road.t, 2)
@@ -104,6 +121,35 @@ class Recorder:
                 round(ms_a_kmh(v.v0), 2), v.lane, int(v.probe), v.state, round(ms_a_kmh(v.v_des), 2), v.kind,
             ))
         self._next_snapshot += self.snapshot_interval
+
+    def _write_trajectories(self, road) -> None:
+        t = round(road.t, 2)
+        b = road.b_physical
+        filas = []
+        for (lane, _d), lst in road._groups().items():
+            lider = None
+            for i, v in enumerate(lst):
+                if v.lane == lane and (v.probe or not self.traj_only_probes):
+                    a = v.a_prev if not b else max(v.a_prev, -b)
+                    if lider is None:
+                        id_l = hueco = hw = ""
+                    else:
+                        id_l = lider.id
+                        hueco = round(lider.rear - v.x, 2)
+                        hw = round((lider.x - v.x) / v.v, 2) if v.v > 0.1 else ""
+                    id_s = lst[i + 1].id if i + 1 < len(lst) else ""
+                    filas.append((t, v.id, v.direction, round(road.position(v), 2), round(v.x, 2), v.lane,
+                                  round(ms_a_kmh(v.v), 2), round(a, 3), v.length, v.kind, int(v.probe), v.state,
+                                  id_l, hueco, hw, id_s))
+                lider = v
+        filas.sort(key=lambda f: f[1])
+        self._traj.writerows(filas)
+
+    def close(self) -> None:
+        """Cierra el archivo de trayectorias, si hay."""
+        if self._traj_file is not None:
+            self._traj_file.close()
+            self._traj_file = None
 
     def save(self, folder: str | Path) -> None:
         """Escribe `eventos.csv` y `fotos.csv` en `folder`."""

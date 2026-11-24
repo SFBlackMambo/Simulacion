@@ -76,6 +76,12 @@ def config_from_args(args) -> SimConfig:
 DEF_CORRIDA = SimConfig(flow_per_hour=200, warmup=900, n_probes=5, probe_spacing=120)
 
 
+def _args_trayectorias(ap: argparse.ArgumentParser) -> None:
+    ap.add_argument("--trayectorias", type=float, default=0.0, metavar="S",
+                    help="guardar la trayectoria de cada vehículo cada S s (tipo NGSIM; archivos grandes)")
+    ap.add_argument("--solo-sondas", action="store_true", help="con --trayectorias: solo las de las sondas")
+
+
 def cmd_corrida(argv=None) -> dict:
     from .single import run_single
 
@@ -84,6 +90,7 @@ def cmd_corrida(argv=None) -> dict:
     ap.add_argument("--vel-sonda", type=float, default=130, help="velocidad deseada de las sondas, km/h")
     ap.add_argument("--semilla", type=int, default=1)
     ap.add_argument("--fotos", type=float, default=5.0, help="s entre fotos de posiciones")
+    _args_trayectorias(ap)
     ap.add_argument("--sin-graficas", action="store_true")
     ap.add_argument("--salida", default=None, help="carpeta (por defecto results/corrida_<fecha>)")
     args = ap.parse_args(argv)
@@ -91,7 +98,8 @@ def cmd_corrida(argv=None) -> dict:
     out = Path(args.salida or f"results/corrida_{time.strftime('%Y%m%d_%H%M%S')}")
     t0 = time.time()
     print(f"Corriendo ({cfg.mode}, {cfg.length / 1000:g} km)...", flush=True)
-    r = run_single(cfg, args.vel_sonda, args.semilla, out, args.fotos, graficas=not args.sin_graficas)
+    r = run_single(cfg, args.vel_sonda, args.semilla, out, args.fotos, graficas=not args.sin_graficas,
+                   trayectorias=args.trayectorias, solo_sondas=args.solo_sondas)
     print(f"Listo en {time.time() - t0:.0f} s. Datos y gráficas en {out}/")
     t = r["trazado"]
     if t["curvas"]:
@@ -132,6 +140,7 @@ def cmd_campana(argv=None):
     ap.add_argument("--viajes", action="store_true", help=argparse.SUPPRESS)  # ya es lo normal; se acepta por compatibilidad
     ap.add_argument("--sin-viajes", action="store_true",
                     help="no guardar viajes.csv (el viaje de cada vehículo; se guarda por defecto)")
+    _args_trayectorias(ap)
     ap.add_argument("--sin-graficas", action="store_true")
     ap.add_argument("--rapido", action="store_true",
                     help="simular con PyPy (de 2 a 5 veces más rápido; instálalo con scripts/instalar_pypy.sh)")
@@ -142,7 +151,8 @@ def cmd_campana(argv=None):
     base = config_from_args(args)
     sweeps = [parse_sweep(b) for b in args.barrer]
     out = run_campaign(base, sweeps, args.velocidades, list(range(1, args.semillas + 1)), args.salida,
-                       workers=args.nucleos, guardar_viajes=not args.sin_viajes)
+                       workers=args.nucleos, guardar_viajes=not args.sin_viajes,
+                       trayectorias=args.trayectorias, solo_sondas=args.solo_sondas)
     if sweeps and not args.sin_graficas:
         try:
             from .analysis import plot_campaign

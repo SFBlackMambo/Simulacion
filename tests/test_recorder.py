@@ -71,3 +71,35 @@ def test_alcances_cuentan_episodios_lentos():
         if t["t_lento"] == 0:
             assert t["alcances"] == 0
     assert any(t["alcances"] > 0 for t in res.trips)
+
+
+def test_trayectorias_no_cambian_nada_y_tienen_lider(tmp_path):
+    import csv as _csv
+
+    import pytest
+
+    from trafico.recorder import Recorder
+    from trafico.simulation import SimConfig, run_simulation
+
+    cfg = SimConfig(length=3_000, flow_per_hour=400, warmup=200, n_probes=2, probe_spacing=30)
+    a = run_simulation(cfg, 130, 2)
+    rec = Recorder(snapshot_interval=None, trajectories=tmp_path / "t.csv", traj_interval=1.0)
+    b = run_simulation(cfg, 130, 2, recorder=rec)
+    rec.close()
+    assert [t["tiempo_viaje"] for t in a.trips] == [t["tiempo_viaje"] for t in b.trips]
+    with open(tmp_path / "t.csv") as f:
+        filas = list(_csv.DictReader(f))
+    ts = sorted({float(r["t"]) for r in filas})
+    assert ts[1] - ts[0] == pytest.approx(1.0)
+    con_lider = [r for r in filas if r["id_lider"]]
+    assert con_lider and all(float(r["hueco_m"]) > 0 for r in con_lider)
+    # el seguidor de cada uno lo tiene como líder en el mismo instante
+    por_clave = {(r["t"], r["id"]): r for r in filas}
+    con_seguidor = [r for r in filas if r["id_seguidor"]]
+    assert con_seguidor
+    for r in con_seguidor:
+        s = por_clave.get((r["t"], r["id_seguidor"]))
+        if s is not None and s["carril"] == r["carril"]:
+            assert s["id_lider"] == r["id"]
+    # una fila por vehículo y segundo
+    assert len({(r["t"], r["id"]) for r in filas}) == len(filas)

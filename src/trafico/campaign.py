@@ -10,6 +10,7 @@ Archivos en la carpeta de salida:
     sondas.csv    una fila por sonda
     viajes.csv    una fila por vehículo de cada corrida (se apaga con guardar_viajes=False);
                   columnas descritas en docs/datos.md
+    trayectorias/ (opcional) un CSV por corrida: combo<k>_v<v_sonda>_s<semilla>.csv
 """
 
 import csv
@@ -54,8 +55,19 @@ def combos(base: SimConfig, sweeps: list[tuple[str, list]]) -> list[tuple[dict, 
 
 
 def _tarea(args):
-    k, cfg, v, seed, viajes = args
-    res = run_simulation(cfg, v, seed)
+    k, cfg, v, seed, viajes, tray = args
+    rec = None
+    if tray is not None:  # (carpeta, intervalo, solo sondas)
+        from .recorder import Recorder
+
+        carpeta, intervalo, solo = tray
+        rec = Recorder(snapshot_interval=None, events=False, traj_interval=intervalo, traj_only_probes=solo,
+                       trajectories=Path(carpeta) / f"combo{k}_v{v:g}_s{seed}.csv")
+    try:
+        res = run_simulation(cfg, v, seed, recorder=rec)
+    finally:
+        if rec is not None:
+            rec.close()
     return k, v, seed, _resumir(res, viajes)
 
 
@@ -143,6 +155,8 @@ def run_campaign(
     workers: int = 1,
     guardar_viajes: bool = True,
     verbose: bool = True,
+    trayectorias: float = 0.0,
+    solo_sondas: bool = False,
 ) -> Path:
     """Corre (o reanuda) una campaña y deja los datos crudos en `out`."""
     out = Path(out)
@@ -168,7 +182,8 @@ def run_campaign(
         with open(out / "corridas.csv") as f:
             hechas = {(r["combo"], r["v_sonda"], r["semilla"]) for r in csv.DictReader(f)}
         _limpiar_incompletas(out, hechas)
-    tareas = [(k, cfg, float(v), s, guardar_viajes)
+    tray = (str(out / "trayectorias"), trayectorias, solo_sondas) if trayectorias > 0 else None
+    tareas = [(k, cfg, float(v), s, guardar_viajes, tray)
               for k, (_vals, cfg) in enumerate(lista) for v in speeds for s in seeds
               if (str(k), str(float(v)), str(s)) not in hechas]
     total = len(lista) * len(speeds) * len(seeds)
