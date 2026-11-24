@@ -39,6 +39,14 @@ class OvertakeParams:
     truck_block_headway: float = 3.0  # detrás de un camión a menos de esto (s) no se ve nada
     car_block_headway: float = 2.0  # detrás de un auto a menos de esto (s) se ve poco
     sight_behind_car: float = 500.0  # cuánto se ve detrás de un auto cercano, m
+    # Asomarse (F033): con `peek` la vista tapada se calcula con una línea de visión (ver `_vista_geometrica`)
+    peek: bool = False
+    peek_offset: float = 0.6  # cuánto se corre hacia la raya central para ver, m
+    lane_width: float = 3.5
+    car_width: float = 1.8
+    truck_width: float = 2.6
+    eye_car: float = 0.4  # ojo del conductor a la izquierda del centro de su vehículo, m
+    eye_truck: float = 0.6
     no_start_braking: bool = False  # no empezar si uno mismo o alguno a rebasar frena fuerte
     return_closing: bool = False  # al volver, el hueco debe cubrir también la diferencia de velocidad
     b_return: float = 3.0  # frenado firme supuesto al volver, m/s²
@@ -145,13 +153,42 @@ def _distance(v: float, v_max: float, T: float, a_max: float, idm=None, road=Non
     return x
 
 
-def _visible(road, p: OvertakeParams, veh: Vehicle, leader: Vehicle, delante: list) -> float:
+def _vista_geometrica(p: OvertakeParams, veh: Vehicle, b: Vehicle) -> float:
+    """Hasta qué distancia (m) ve `veh` un vehículo en el carril contrario, con `b` delante en su carril.
+
+    Vista en planta (Hegeman 2008: el que quiere rebasar se asoma para ver). Ejes: y = 0 en el centro
+    del carril propio, hacia el carril contrario. El ojo del conductor va a `eye + peek_offset` del
+    centro; el borde de `b` hacia el carril contrario, a la mitad de su ancho; lo más cercano de un auto
+    que viene de frente, a `lane_width − car_width/2`. La línea del ojo a un contrario a distancia D pasa
+    por la parte trasera de `b` (a una distancia g) a la altura y_ojo + (y_c − y_ojo)·g/D: si eso queda
+    dentro de `b`, no lo ve. Así se ve hasta D = g·(y_c − y_ojo)/(y_borde − y_ojo). Un camión ve por
+    encima de un auto (va más alto).
+    """
+    camion = veh.kind == "camion"
+    if camion and b.kind != "camion":
+        return inf
+    y_ojo = (p.eye_truck if camion else p.eye_car) + p.peek_offset
+    y_borde = 0.5 * (p.truck_width if b.kind == "camion" else p.car_width)
+    if y_ojo >= y_borde:
+        return inf  # ya se asomó más allá del borde: ve todo el carril contrario
+    y_c = p.lane_width - 0.5 * p.car_width
+    g = max(b.rear - veh.x, 0.5)
+    return g * (y_c - y_ojo) / (y_borde - y_ojo)
+
+
+def _visible(road, p: OvertakeParams, veh: Vehicle, leader: Vehicle, delante: list, chain=()) -> float:
     """Cuánto ve `veh` del carril contrario (m), según el trazado y quién le tapa la vista."""
     vis = inf if road.geometry is None else road.geometry.sight(veh.direction, veh.x)
-    if not p.blocked_view:
+    if p.peek:
+        for b in chain or (leader,):  # los de su carril que va a rebasar
+            vis = min(vis, _vista_geometrica(p, veh, b))
+        if not delante:
+            return vis
+    elif not p.blocked_view:
         return vis
     v = max(veh.v, 1.0)
-    for b in [leader, *delante]:
+    # los que ya rebasan delante (en el carril contrario) tapan con la regla fija
+    for b in (delante if p.peek else [leader, *delante]):
         hw = (b.rear - veh.x) / v
         if b.kind == "camion" and hw < p.truck_block_headway:
             return 0.0
@@ -182,7 +219,7 @@ def _is_safe(road, p: OvertakeParams, veh: Vehicle, chain: list[Vehicle]) -> boo
     veh.convoy_start = bool(delante)
     # Descarte rápido (mismo resultado, sin las cuentas caras): si no ve lo suficiente ni para
     # el rebase más corto posible, no hay nada que calcular.
-    vis = _visible(road, p, veh, chain[0], delante)
+    vis = _visible(road, p, veh, chain[0], delante, chain)
     f_guard = road.drivers.guard_factor(veh) if road.drivers is not None else 1.0
     if p.gap_logit:
         return _is_safe_logit(road, p, veh, chain, delante, vis, f_guard, idm, a_max)

@@ -987,12 +987,13 @@
       "subtasks": [
         {
           "name": "Asomarse para ver",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 3.5
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T20:06:43-07:00"
     },
     {
       "id": "F034",

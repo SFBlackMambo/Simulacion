@@ -391,6 +391,12 @@ class Animacion:
             partes.append(f"cambio de carril {o.t_lane_change:g} s")
         if o is not None and o.convoy:
             partes.append("rebase en cadena")
+        if o is not None and o.peek:
+            partes.append("se asoma para ver")
+        elif o is not None and o.blocked_view:
+            partes.append("vista tapada")
+        if o is not None and o.gap_logit:
+            partes.append("acepta huecos al azar (logit)" + (" con piso" if o.gap_floor else ""))
         if d.share_cautious or d.share_aggressive:
             partes.append(f"{100 * d.share_cautious:g} % prudentes, {100 * d.share_aggressive:g} % agresivos")
         if d.impatience_after > 0:

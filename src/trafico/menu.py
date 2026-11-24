@@ -84,7 +84,7 @@ class Menu:
         op = self.elegir("¿Qué relieve tiene?", [(str(i + 1), RELIEVES[n].descripcion) for i, n in enumerate(nombres)])
         args = [] if nombres[int(op) - 1] == "plano" else ["--relieve", nombres[int(op) - 1]]
         realista = self.si_no("¿Comportamiento realista? (camiones, cambio de carril de 3 s, rebase en cadena, "
-                              "conductores distintos, reacción de 1 s)", False)
+                              "conductores distintos, reacción de 1 s, se asoma para ver, acepta huecos al azar)", False)
         cam = self.preguntar("Porcentaje de camiones", 10 if realista else 0, float)
         if realista:
             args.append("--realista")

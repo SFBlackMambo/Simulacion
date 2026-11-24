@@ -18,7 +18,8 @@ from trafico.stats import mean_ci
 PIEZAS = {
     "camiones": {"trucks.share": 0.0},
     "cambio de carril 3 s": {"overtaking.t_lane_change": 0.0},
-    "visión tapada": {"overtaking.blocked_view": False},
+    "visión tapada (asomarse)": {"overtaking.blocked_view": False, "overtaking.peek": False},
+    "aceptación de hueco logit": {"overtaking.gap_logit": False},
     "rebase en cadena": {"overtaking.convoy": False},
     "conductores e impaciencia": {"drivers.share_cautious": 0.0, "drivers.share_aggressive": 0.0,
                                   "drivers.impatience_after": 0.0},

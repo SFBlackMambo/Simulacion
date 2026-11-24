@@ -174,3 +174,22 @@ Toledo (2010), con un término propio de cada conductor:
 Estrés (15 km, 400 veh/h, 8 semillas, sondas a 130): sin piso, 0 choques. Los rebases suben de 0.39 a 0.46 por
 vehículo (simple) y de 0.22 a 0.24 (realista), con 41 y 4 vehículos con frenado de emergencia. Con piso queda
 igual al criterio de siempre.
+
+## Asomarse para ver (`--param asomarse=1`)
+
+Reemplaza la regla fija de la vista tapada ("a menos de 3 s de un camión no se ve nada; a menos de 2 s de un
+auto se ven 500 m") por una línea de visión en planta (Hegeman 2008 observó que quien quiere rebasar se asoma
+hacia la raya central). El ojo del conductor va 0.4 m a la izquierda del centro de su auto (0.6 en un camión)
+más 0.6 m que se asoma. El vehículo de delante tapa hasta la mitad de su ancho (auto 1.8 m, camión 2.6 m) y el
+contrario más cercano está a 3.5 − 0.9 = 2.6 m. Detrás de un vehículo a `g` m se ve hasta
+`D = g·(2.6 − y_ojo)/(borde − y_ojo)`:
+
+| Delante, a 20 m | Sin asomarse | Asomado 0.6 m |
+|---|---|---|
+| Auto | 88 m | todo (el ojo queda fuera del borde) |
+| Camión | 49 m | 107 m (a 80 m: 427 m) |
+
+Un camión ve por encima de un auto. Los que ya rebasan delante en el carril contrario siguen tapando con la
+regla fija. En curvas se toma lo menor entre esto y la visibilidad del trazado.
+
+Desde F033, el preset realista usa asomarse y la aceptación de hueco con logit (sin piso).

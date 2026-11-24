@@ -306,3 +306,11 @@
 - Estrés (15 km, 400 veh/h, 8 semillas, simple / realista / realista con curvas y montañoso): 0 choques sin piso; rebases +18 % (simple) y +11 % (realista); 41 / 4 / 6 vehículos con frenado de emergencia. Con piso, igual al criterio de siempre.
 - Todavía no entra en el preset realista (se decide junto con F033).
 - Verificado: 203 tests; huella idéntica (también en PyPy).
+
+---
+
+## F033 - 2026-11-23
+- `overtaking.peek` (alias `asomarse`): línea de visión en planta detrás de los vehículos a rebasar (ojo 0.4 m a la izquierda en autos / 0.6 en camiones, + 0.6 m que se asoma; anchos 1.8 / 2.6 m; carril 3.5 m). D = g·(2.6 − y_ojo)/(borde − y_ojo). Un camión ve por encima de un auto. Los que ya rebasan delante siguen con la regla fija.
+- Estrés realista con 20 % camiones (15 km, 400 veh/h, 8 semillas): rebases 0.19 → 0.28 por vehículo en recta y 0.13 → 0.22 en curvas y montañoso; 0 choques; 2-5 vehículos con frenado de emergencia (con logit: 11-24).
+- Decisión (según el plan, tras validarlos): B1 (logit) y B2 (asomarse) entran en PRESET_REALISTA. Cambia la huella realista (regenerada a propósito; la del simple sigue idéntica; PyPy igual). descomponer_realista.py, animación y menú actualizados.
+- Verificado: 208 tests.

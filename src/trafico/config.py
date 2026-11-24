@@ -46,6 +46,7 @@ ALIAS = {
     "reaccion": "reaction_time",
     "rebase_logit": "overtaking.gap_logit",
     "piso_seguro": "overtaking.gap_floor",
+    "asomarse": "overtaking.peek",
 }
 
 
@@ -165,6 +166,8 @@ PRESET_REALISTA = {
     "reaction_time": 1.0,
     "b_physical": 9.0,
     "overtaking.return_closing": True,
+    "overtaking.peek": True,  # F033: se asoma para ver (línea de visión) en lugar de la regla fija
+    "overtaking.gap_logit": True,  # F032: aceptación de hueco con logit, sin piso de seguridad
 }
 
 
