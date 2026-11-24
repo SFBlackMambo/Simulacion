@@ -193,3 +193,24 @@ Un camión ve por encima de un auto. Los que ya rebasan delante en el carril con
 regla fija. En curvas se toma lo menor entre esto y la visibilidad del trazado.
 
 Desde F033, el preset realista usa asomarse y la aceptación de hueco con logit (sin piso).
+
+## Carriles de rebase / tramos 2+1 (`--param "carriles_rebase=2000:4000:1;6000:8000:-1"`)
+
+Cada tramo `inicio:fin:sentido` (m, en coordenadas de la carretera) le da un segundo carril a un sentido. En
+`carril` de trayectorias y fotos, el carril extra es el 2 (sentido +1) o el 3 (sentido -1).
+
+- Dentro de su tramo, quien quiere rebasar se pasa al carril extra (con las mismas condiciones para querer
+  rebasar). Solo hace falta hueco en ese carril: ahí no hay tráfico de frente. No entra si no alcanza a dejar
+  atrás al de delante antes de los últimos 250 m, ni si el carril extra va igual de lento.
+- Se queda en el carril extra mientras tenga delante, cerca, a otro más lento, y vuelve a la derecha cuando hay
+  hueco (incluyendo lo que necesita para frenar hasta la velocidad del otro).
+- Incorporación al final: en los últimos 250 m tiene que volver y los márgenes bajan a la mitad. Si no cabe,
+  el fin del carril funciona como un obstáculo detenido: frena antes de llegar.
+- El otro sentido no rebasa por el carril contrario a lo largo del tramo (con 100 m de margen en cada punta),
+  como en una carretera 2+1 con doble raya.
+- Rebases contados: los vehículos del carril derecho que dejó atrás. Aborto: llegar al final sin haber
+  rebasado a nadie. `t_carril_contrario` no cuenta el carril extra.
+
+Estrés (12 km con cuatro tramos de 1.5 km, realista con 20 % camiones, 4 semillas): 0 choques de 300 a
+900 veh/h, en recta y en montaña. A 900 veh/h en montaña el carril extra se satura: muchos llegan al final sin
+haber rebasado.

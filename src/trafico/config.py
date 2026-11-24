@@ -47,6 +47,7 @@ ALIAS = {
     "rebase_logit": "overtaking.gap_logit",
     "piso_seguro": "overtaking.gap_floor",
     "asomarse": "overtaking.peek",
+    "carriles_rebase": "passing_lanes",
 }
 
 
@@ -67,7 +68,7 @@ def from_dict(d: dict) -> SimConfig:
                 sub["idm"] = IDMParams(**sub["idm"])
             sub.pop("grades", None)  # campañas viejas guardaban la respuesta fija del camión
             kw[key] = cls(**sub)
-    for clave in ("curves", "grades", "speed_limits", "no_pass_zones"):
+    for clave in ("curves", "grades", "speed_limits", "no_pass_zones", "passing_lanes"):
         if clave in kw:
             kw[clave] = tuple(tuple(c) for c in kw[clave])
     return SimConfig(**kw)
@@ -105,6 +106,9 @@ def set_param(cfg: SimConfig, name: str, value) -> SimConfig:
         return dataclasses.replace(cfg, overtaking=cfg.overtaking or OvertakeParams())
     if name == "curves" and isinstance(value, str):
         return dataclasses.replace(cfg, curves=parse_curves(value))
+    if name == "passing_lanes" and isinstance(value, str):  # "inicio:fin:sentido;..."
+        tramos = tuple((a, b, int(d)) for a, b, d in parse_curves(value))
+        return dataclasses.replace(cfg, passing_lanes=tramos)
     if name == "speed_limits" and isinstance(value, str):
         return dataclasses.replace(cfg, speed_limits=parse_curves(value))
     if name == "no_pass_zones" and isinstance(value, str):

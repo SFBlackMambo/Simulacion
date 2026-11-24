@@ -46,6 +46,7 @@ class Road:
         reaction_time: float = 0.0,
         b_physical: float = 0.0,
         logit_seed: int = 0,
+        passing_lanes: tuple = (),
     ) -> None:
         self.length = length
         self.dt = dt
@@ -71,10 +72,50 @@ class Road:
         self.collisions = 0  # choques: cada par de vehículos cuenta una vez
         self._choques: set = set()
         self.logit_seed = logit_seed  # semilla de la aceptación de hueco con logit (F032)
+        self._set_passing_lanes(passing_lanes)
         self._pending: dict[int, deque[Vehicle]] = {1: deque(), -1: deque()}
         self._sources: dict[int, PoissonArrivals] = {}
         self._replacers: dict[int, PoissonArrivals] = {}
         self._next_id = 0
+
+    # ------------------------------------------------------------------
+    # Carriles de rebase (2+1)
+    # ------------------------------------------------------------------
+    PL_BUFFER = 100.0  # m antes y después del tramo en que el otro sentido no rebasa
+
+    def _set_passing_lanes(self, tramos) -> None:
+        """Tramos `(inicio, fin, sentido)` en coordenadas de la carretera con un carril extra."""
+        L = self.length
+        self.passing: dict[int, list] = {1: [], -1: []}  # en coordenadas propias de cada sentido
+        for a, b, d in tramos:
+            a, b, d = float(a), float(b), int(d)
+            if not (0 <= a < b <= L) or d not in (1, -1):
+                raise ValueError(f"carril de rebase inválido: {a:g}:{b:g}:{d}")
+            self.passing[d].append((a, b) if d == 1 else (L - b, L - a))
+        for d in (1, -1):
+            self.passing[d].sort()
+        for a, b in self.passing[1]:  # dos carriles extra en el mismo lugar no caben
+            for c, e in self.passing[-1]:
+                if a < L - c and L - e < b:
+                    raise ValueError("los carriles de rebase de los dos sentidos se enciman")
+        # dónde no puede rebasar por el carril contrario cada sentido (el otro tiene el carril extra)
+        m = self.PL_BUFFER
+        self.no_pass_pl = {d: [(L - b - m, L - a + m) for a, b in self.passing[-d]] for d in (1, -1)}
+        self.has_passing = bool(self.passing[1] or self.passing[-1])
+
+    def passing_end(self, direction: int, x: float) -> float | None:
+        """Fin del carril de rebase en que está la posición propia `x`, o None si no hay."""
+        for a, b in self.passing[direction]:
+            if a <= x < b:
+                return b
+        return None
+
+    def passing_blocked(self, direction: int, x0: float, x1: float) -> bool:
+        """¿Un rebase por el carril contrario entre `x0` y `x1` invadiría un tramo 2+1 del otro sentido,
+        o empezaría dentro del carril de rebase propio (ahí se usa el carril extra)?"""
+        if self.passing_end(direction, x0) is not None:
+            return True
+        return any(a < x1 and x0 < b for a, b in self.no_pass_pl[direction])
 
     # ------------------------------------------------------------------
     # Creación de vehículos
@@ -289,6 +330,10 @@ class Road:
                     a = hdm_acceleration(v_est, v0, lideres, p_idm)
                 else:
                     a = idm_acceleration(veh.v, v0, leader.rear - veh.x, leader.v, p_idm)
+                if lane >= 2 and veh.lane == lane:  # el carril de rebase se acaba: no pasar del final
+                    falta = veh.pl_end - veh.x
+                    if falta < self.overtaking.pl_merge:
+                        a = min(a, idm_acceleration(veh.v, v0, max(0.1, falta), 0.0, p_idm))
                 if geo is not None:
                     a = curve_accel(a, veh.v, v0)
                 if g_activo or veh.grades is not None:  # el motor no da para más (pendiente, aire)
@@ -447,7 +492,7 @@ def _medir(veh: Vehicle, dt: float) -> None:
         veh.t_hw25 += dt
     if hw < 3.0:
         veh.t_hw3 += dt
-    if veh.lane != veh.home_lane:
+    if veh.lane == 1 - veh.home_lane:
         veh.t_opposite += dt
     t = veh.m_ttcl
     if t < TTC_CONFLICTO <= veh.ttcl_prev:  # empieza un episodio

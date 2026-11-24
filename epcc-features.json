@@ -1013,12 +1013,13 @@
       "subtasks": [
         {
           "name": "Carril de rebase 2+1 (parte 1)",
-          "status": "pending",
+          "status": "completed",
           "estimatedHours": 4
         }
       ],
-      "passes": false,
-      "status": "pending"
+      "passes": true,
+      "status": "verified",
+      "verifiedAt": "2026-11-23T20:23:10-07:00"
     },
     {
       "id": "F035",

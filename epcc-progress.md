@@ -314,3 +314,11 @@
 - Estrés realista con 20 % camiones (15 km, 400 veh/h, 8 semillas): rebases 0.19 → 0.28 por vehículo en recta y 0.13 → 0.22 en curvas y montañoso; 0 choques; 2-5 vehículos con frenado de emergencia (con logit: 11-24).
 - Decisión (según el plan, tras validarlos): B1 (logit) y B2 (asomarse) entran en PRESET_REALISTA. Cambia la huella realista (regenerada a propósito; la del simple sigue idéntica; PyPy igual). descomponer_realista.py, animación y menú actualizados.
 - Verificado: 208 tests.
+
+---
+
+## F034 - 2026-11-23
+- `passing_lanes` (alias `carriles_rebase`, "inicio:fin:sentido;..."): carril extra 2 (+1) / 3 (−1). Road: `passing_end`, `passing_blocked` (el otro sentido no rebasa en el tramo ± 100 m; dentro del tramo propio se usa el carril extra). overtaking: `_start_carril` (hueco en el carril extra, que alcance para rebasar antes de la incorporación y que el carril extra no vaya igual de lento) y `_volver_de_carril` (se queda si hay otro lento cerca; obligado en los últimos 250 m con márgenes a la mitad). El fin del carril es un obstáculo detenido en los últimos 250 m.
+- Hallazgos al validar: (1) si el de delante también se pasaba al carril extra, el auto nunca lo "rebasaba" y abortaba al final → ahora cuenta como rebasado; (2) el obstáculo del fin frenaba desde 500 m → solo en la zona de incorporación; (3) regresar sin rebasar porque el objetivo se fue al carril extra no es aborto.
+- Estrés (12 km, 4 tramos de 1.5 km, realista con 20 % camiones, 300/600/900 veh/h, recta y montaña, 4 semillas): 0 choques; rebases 0.57-0.82 por vehículo (sin tramos: 0.17-0.27).
+- `t_carril_contrario` ya no cuenta el carril extra. Verificado: 214 tests; huella idéntica (CPython y PyPy).

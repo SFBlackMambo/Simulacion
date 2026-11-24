@@ -26,7 +26,9 @@ class Vehicle:
     deseada y no cambia durante el viaje.
 
     Carriles físicos: el carril 0 es el normal del sentido +1 y el carril 1 el
-    del sentido -1. Al rebasar, un vehículo usa el carril del otro sentido.
+    del sentido -1. Al rebasar, un vehículo usa el carril del otro sentido. En los
+    tramos con carril de rebase (2+1), el carril extra es el 2 (sentido +1) o el 3
+    (sentido -1).
     """
 
     id: int
@@ -84,6 +86,8 @@ class Vehicle:
     fuel_l: float = 0.0  # combustible gastado, L
     logit_eta: object = None  # término aleatorio del conductor en la aceptación de hueco (F032)
     crashes: int = 0  # choques en que estuvo (cada par de vehículos cuenta una vez)
+    pl_end: float = 0.0  # carril de rebase: dónde termina (coordenada propia)
+    pl_ahead: list = field(default_factory=list)  # carril de rebase: los que tenía delante al entrar
 
     def __post_init__(self) -> None:
         if self.lane < 0:
@@ -107,6 +111,11 @@ class Vehicle:
         else:
             self.lc = 0.0
         self.lane_prev, self.lane = self.lane, lane
+
+    @property
+    def extra_lane(self) -> int:
+        """Carril de rebase de su sentido (donde lo hay)."""
+        return 2 if self.direction == 1 else 3
 
     @property
     def home_lane(self) -> int:

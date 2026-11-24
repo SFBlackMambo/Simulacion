@@ -65,6 +65,9 @@ class OvertakeParams:
     logit_dv: float = 0.05  # por km/h
     logit_wait: float = 0.3  # por minuto atrapado
     logit_sigma: float = 1.0
+    # Carril de rebase (2+1, F034-F035)
+    pl_min_remaining: float = 300.0  # no entrar al carril extra si quedan menos de esto, m
+    pl_merge: float = 250.0  # últimos metros: incorporación obligada (márgenes a la mitad)
 
 
 def _free_speed(v: float, v0: float, idm, step: float) -> float:
@@ -280,6 +283,8 @@ def _seguro_de_frente(road, p: OvertakeParams, veh: Vehicle, vis: float, f_guard
     geo = road.geometry
     if geo is not None and veh.respects_no_pass and geo.no_pass_between(veh.direction, veh.x, x_end):
         return False  # la maniobra invadiría una zona de no rebase señalizada
+    if road.has_passing and road.passing_blocked(veh.direction, veh.x, x_end):
+        return False  # el otro sentido tiene carril de rebase ahí
     if vis < inf:
         # Lo que no se ve puede traer un vehículo de frente: se supone uno a `v_unseen`
         # justo donde acaba la visibilidad. Así solo se rebasa si la maniobra cabe en lo visible.
@@ -364,6 +369,8 @@ def _is_safe_logit(road, p: OvertakeParams, veh: Vehicle, chain: list, delante: 
     geo = road.geometry
     if geo is not None and veh.respects_no_pass and geo.no_pass_between(veh.direction, veh.x, x_end):
         return False
+    if road.has_passing and road.passing_blocked(veh.direction, veh.x, x_end):
+        return False
     if p.gap_floor and not _seguro_de_frente(road, p, veh, vis, f_guard, a_max, T, x_end):
         return False
     spare, gid = _sobrante(road, p, veh, vis, T, x_end)
@@ -384,6 +391,10 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
         v_puede = min(v_puede, uphill_speed(veh.grades, g))
     if leader.rear - veh.x > p.trigger_gap or leader.v + dv_min > v_puede:
         return False
+    if road.has_passing:
+        fin = road.passing_end(veh.direction, veh.x)
+        if fin is not None:
+            return _start_carril(road, p, veh, leader, fin)
     need = veh.length + p.m_back + p.m_front
     chain = [leader]
     j = i - 1
@@ -412,6 +423,91 @@ def _start(road, p: OvertakeParams, veh: Vehicle, lst: list[Vehicle], i: int) ->
     return True
 
 
+def _start_carril(road, p: OvertakeParams, veh: Vehicle, leader: Vehicle, fin: float) -> bool:
+    """Pasarse al carril de rebase: solo hace falta hueco en ese carril (no hay tráfico de frente)."""
+    if fin - veh.x < p.pl_min_remaining:
+        return False
+    # ¿alcanza para dejarlo atrás antes de la zona de incorporación? (a la velocidad que busca)
+    dv = veh.v_des - leader.v
+    if dv <= 0:
+        return False
+    t_pass = (leader.x - veh.x + veh.length + p.m_back) / dv
+    if veh.x + veh.v_des * t_pass + p.pl_merge > fin:
+        return False
+    extra = veh.extra_lane
+    p_idm = veh.idm or road.idm
+    for u in road.vehicles:
+        if u is veh or u.direction != veh.direction or not u.occupies(extra):
+            continue
+        if u.x > veh.x:
+            frenar = max(0.0, veh.v - u.v) ** 2 / (2.0 * p_idm.b)
+            if u.rear - veh.x < p_idm.s0 + 0.5 * p_idm.T * veh.v + frenar:
+                return False
+            if u.rear - veh.x < leader.rear - veh.x + 200.0 and u.v_des < leader.v + p.dv_min:
+                return False  # el carril extra va igual de lento: no se gana nada
+        else:  # el que viene atrás por el carril extra tiene que poder frenar
+            if veh.rear - u.x < 0.5 * p.m_back + max(0.0, u.v - veh.v) ** 2 / (2.0 * p.b_return):
+                return False
+    veh.change_lane(extra, p.t_lane_change)
+    veh.state = REBASANDO
+    veh.targets = [leader]
+    veh.pl_end = fin
+    veh.pl_ahead = [u for u in road.vehicles if u.direction == veh.direction and u.lane == veh.home_lane
+                    and veh.x < u.x < fin]
+    veh.convoy_start = False
+    road.event(REBASE_INICIO, veh, 1)
+    return True
+
+
+def _volver_de_carril(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
+    """Regreso al carril derecho desde el carril de rebase (obligado al final del tramo)."""
+    falta = veh.pl_end - veh.x
+    urgente = falta < p.pl_merge
+    home = veh.home_lane
+    # rebasado: ya lo dejó atrás, o se pasó también al carril extra (iba detrás de otro más lento)
+    if veh.state == REBASANDO and all(veh.rear >= t.x + p.m_back or not t.occupies(home) for t in veh.targets):
+        veh.state = REGRESANDO
+    carril = groups.get((home, veh.direction), ())
+    if not urgente:
+        if veh.state == REBASANDO:
+            return False
+        # sigue rebasando si delante, cerca, va otro más lento
+        dv_min = p.dv_min * (road.drivers.dv_factor(veh) if road.drivers is not None else 1.0)
+        siguiente = None
+        for u in carril:
+            if u.x > veh.x and u is not veh:
+                siguiente = u  # ordenados de delante hacia atrás: el último que cumple es el más cercano
+        if (siguiente is not None and siguiente.rear - veh.x < p.trigger_gap
+                and siguiente.v + dv_min < veh.v_des):
+            return False
+    ahead = behind = inf
+    for u in carril:
+        if u is veh:
+            continue
+        if u.x > veh.x:
+            ahead = min(ahead, u.rear - veh.x - max(0.0, veh.v - u.v) ** 2 / (2.0 * p.b_return))
+        else:
+            behind = min(behind, veh.rear - u.x - max(0.0, u.v - veh.v) ** 2 / (2.0 * p.b_return))
+    m_front, m_back = (0.5 * p.m_front, 0.5 * p.m_back) if urgente else (p.m_front, p.m_back)
+    if falta > 0 and (ahead < m_front or behind < m_back):
+        return False  # (si ya se acabó el carril, se incorpora como sea)
+    pasados = [u for u in veh.pl_ahead if u.x < veh.rear]
+    if pasados:
+        veh.overtakes += len(pasados)
+        for u in pasados:
+            u.overtaken += 1
+        road.event(REBASE_FIN, veh, len(pasados))
+    elif urgente:  # se acabó el carril sin rebasar a nadie
+        veh.aborts += 1
+        road.event(REBASE_ABORTO, veh, 0)
+    # (si regresa sin haber rebasado porque el de delante también se pasó al carril extra, no es aborto)
+    veh.change_lane(home, p.t_lane_change)
+    veh.state = SIGUIENDO
+    veh.targets = []
+    veh.pl_ahead = []
+    return True
+
+
 def _threat(road, p: OvertakeParams, veh: Vehicle) -> bool:
     # con cambio de carril lento hay que reaccionar antes: volver también lleva tiempo
     t = p.t_threat + p.t_lane_change
@@ -424,6 +520,8 @@ def _threat(road, p: OvertakeParams, veh: Vehicle) -> bool:
 
 
 def _try_return(road, p: OvertakeParams, veh: Vehicle, groups) -> bool:
+    if veh.lane >= 2:
+        return _volver_de_carril(road, p, veh, groups)
     amenaza = None  # se calcula solo si hace falta
     if veh.state == REBASANDO:
         if all(veh.rear >= t.x + p.m_back for t in veh.targets):
