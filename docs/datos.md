@@ -219,3 +219,23 @@ En el menú: "¿Con carriles de rebase?" pide cada cuántos km y el largo, y arm
 (`config.patron_2mas1`). En la animación, la vía tiene tres franjas: arriba el carril contrario, en medio el
 carril extra y abajo el propio. Dentro de un tramo, la doble raya amarilla separa los sentidos y una
 discontinua separa los dos carriles del mismo sentido.
+
+## La mejor velocidad (`trafico graficar DIR --mejor`)
+
+Lee `sondas.csv` y `corridas.csv` (campañas corridas desde F031) y deja en `DIR/graficas/`:
+
+- `mejor_por_velocidad.csv`: por combinación y velocidad de sonda, la media e IC 95 % entre semillas del tiempo
+  de viaje, retraso, rebases, litros, CO2, velocidad media, tiempo en el carril contrario, conflictos, frenados de
+  emergencia y choques; `ganancia_vs_ref` (contra 100 km/h, o la más baja) y `ganancia_paso` (contra la
+  velocidad anterior), emparejadas por semilla; `l_100km`; los riesgos `riesgo_potencia_*`, `riesgo_kloeden`
+  (con `dv_fondo_kmh` = velocidad media de la sonda − la del fondo) y `choques_por_mvkm` (toda la corrida);
+  `costo_<escenario>` en MXN por viaje y las partes `medio_tiempo`, `medio_combustible`, `medio_co2`,
+  `medio_accidentes`.
+- `mejor_velocidad.csv`: por combinación y escenario, la velocidad de menor costo y `rango_empate`: las
+  velocidades cuyo costo no se distingue del mínimo (la diferencia emparejada por semilla tiene un IC 95 % que
+  incluye el cero).
+- Gráficas: `mejor_tiempo`, `mejor_ganancia`, `mejor_ganancia_paso`, `mejor_combustible`, `mejor_riesgo_kloeden`,
+  `mejor_costo_<escenario>` y `mejor_partes__<combinación>` (barras apiladas con precios medios).
+
+Escenarios: `bajo`, `medio`, `alto` (riesgo con el modelo potencia) y `medio_kloeden`. `--precios medio alto`
+elige cuáles; `--precio valor_tiempo_h=150` (se puede repetir) cambia un precio en todos.

@@ -129,12 +129,13 @@ def cmd_campana(argv=None):
         prog="trafico campana",
         description="Muchas simulaciones barriendo parámetros. Se puede reanudar con el mismo comando.",
         epilog="Ejemplo: trafico campana --barrer flujo=100,200,300 --barrer longitud=10000,20000 "
-               "--velocidades 120 130 --semillas 8 --nucleos 8 --salida results/camp1",
+               "--velocidades 90 100 110 120 130 140 150 --semillas 8 --nucleos 8 --salida results/camp1",
     )
     add_config_args(ap, DEF_CAMPANA)
     ap.add_argument("--barrer", action="append", default=[], metavar="NOMBRE=V1,V2,...",
                     help="parámetro a barrer (repetible: se combinan todos)")
-    ap.add_argument("--velocidades", type=float, nargs="+", default=[120, 130], help="velocidades de sonda, km/h")
+    ap.add_argument("--velocidades", type=float, nargs="+", default=[90, 100, 110, 120, 130, 140, 150],
+                    help="velocidades de sonda, km/h (por defecto de 90 a 150, de 10 en 10)")
     ap.add_argument("--semillas", type=int, default=8, help="réplicas por combinación")
     ap.add_argument("--nucleos", type=int, default=1, help="procesos en paralelo")
     ap.add_argument("--viajes", action="store_true", help=argparse.SUPPRESS)  # ya es lo normal; se acepta por compatibilidad
@@ -209,10 +210,43 @@ def cmd_graficar(argv=None):
     ap.add_argument("--serie", default=None, help="parámetro que separa las líneas (por defecto el segundo)")
     ap.add_argument("--comparar", type=float, nargs=2, default=None, metavar=("LENTA", "RAPIDA"))
     ap.add_argument("--salida", default=None)
+    ap.add_argument("--mejor", action="store_true",
+                    help="la mejor velocidad: tiempo contra combustible, CO2 y riesgo, con costo en MXN")
+    ap.add_argument("--precios", nargs="+", default=None, metavar="ESC",
+                    help="escenarios de precios (bajo medio alto medio_kloeden; por defecto todos)")
+    ap.add_argument("--precio", action="append", default=[], metavar="NOMBRE=VALOR",
+                    help="cambia un precio en todos los escenarios, p. ej. valor_tiempo_h=150 (ver costos.Precios)")
     args = ap.parse_args(argv)
+    if args.mejor:
+        return _graficar_mejor(args)
     nombre = cfgmod.nombre_real
     rutas = plot_campaign(args.carpeta, nombre(args.x) if args.x else None,
                           nombre(args.serie) if args.serie else None, args.comparar, args.salida)
+    print(f"{len(rutas)} archivos en {rutas[0].parent}/")
+    return rutas
+
+
+def escenarios_precios(nombres=None, cambios=()) -> dict:
+    """Escenarios de precios para `--mejor` (con `NOMBRE=VALOR` aplicados a todos)."""
+    from .costos import ESCENARIOS, con_precios
+
+    todos = {**ESCENARIOS, "medio_kloeden": con_precios("medio", riesgo="kloeden")}
+    nombres = nombres or list(todos)
+    desconocidos = [n for n in nombres if n not in todos]
+    if desconocidos:
+        raise SystemExit(f"escenario desconocido: {', '.join(desconocidos)}; opciones: {', '.join(todos)}")
+    kw = dict(c.split("=", 1) for c in cambios)
+    return {n: con_precios(todos[n], **kw) for n in nombres}
+
+
+def _graficar_mejor(args):
+    from .analysis import Campaign
+    from .mejor import graficar, resumen_texto, tablas
+
+    precios = escenarios_precios(args.precios, args.precio)
+    rutas = graficar(args.carpeta, precios, args.salida)
+    _, mejores = tablas(args.carpeta, precios)
+    print(resumen_texto(mejores, Campaign(args.carpeta)))
     print(f"{len(rutas)} archivos en {rutas[0].parent}/")
     return rutas
 

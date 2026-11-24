@@ -330,3 +330,12 @@
 - Menú: pregunta por tramos 2+1 (cada cuántos km y largo); `config.patron_2mas1` los genera alternando el sentido.
 - Incorporación al final y estrés: ver F034 (0 choques; test_passing_lane incluye estrés realista en montaña con 20 % camiones a 600 veh/h).
 - Verificado: 215 tests.
+
+---
+
+## F036 - 2026-11-23
+- `src/trafico/mejor.py` + `trafico graficar DIR --mejor [--precios ...] [--precio k=v]`: tablas `mejor_por_velocidad.csv` y `mejor_velocidad.csv` (velocidad de menor costo por escenario y rango que no se distingue del mínimo, con diferencia emparejada por semilla) y gráficas de tiempo, ganancia contra 100 y por cada +10, combustible, riesgo de Kloeden, costo por escenario y partes del costo (barras apiladas). Paleta categórica del proyecto, un solo eje, leyenda arriba y etiquetas directas (skill dataviz).
+- Escenarios: bajo / medio / alto (modelo potencia) y medio_kloeden.
+- Campañas: velocidades por defecto 90-150 de 10 en 10 (CLI y menú). Menú → graficar pregunta por la mejor velocidad.
+- Prueba con una campaña chica (8 km, 100 y 300 veh/h): con precios medios la mejor es 90 km/h; a 300 veh/h, de 90 a 120 no se distingue (el tráfico no deja ir más rápido: la velocidad media solo pasa de 89 a 100 km/h).
+- Verificado: 219 tests.

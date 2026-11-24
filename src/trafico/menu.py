@@ -152,7 +152,7 @@ class Menu:
             nombre, _, ejemplo = PARAMS_BARRIDO[int(op) - 1]
             valores = self.preguntar("Valores separados por comas", ejemplo)
             barridos += ["--barrer", f"{nombre}={valores.replace(' ', '')}"]
-        vel = self.preguntar("Velocidades de sonda a comparar (km/h, separadas por espacios)", "120 130")
+        vel = self.preguntar("Velocidades de sonda a comparar (km/h, separadas por espacios)", "90 100 110 120 130 140 150")
         args += barridos + ["--velocidades", *vel.split()]
         args += ["--sondas", str(self.preguntar("Sondas por corrida", 20, int))]
         args += ["--semillas", str(self.preguntar("Réplicas (semillas) por combinación", 8, int))]
@@ -165,6 +165,8 @@ class Menu:
     def graficar(self) -> list[str]:
         carpeta = self.preguntar("Carpeta de la campaña", "results/campana")
         args = ["graficar", carpeta]
+        if self.si_no("¿Analizar la mejor velocidad (tiempo contra combustible, CO2, riesgo y costo en MXN)?", True):
+            return args + ["--mejor"]
         x = self.preguntar("Parámetro del eje x (Enter: el primero barrido)", "")
         if x:
             args += ["--x", x]
